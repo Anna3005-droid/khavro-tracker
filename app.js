@@ -403,7 +403,7 @@
     var p;
     if (mode === 'login') p = sb.auth.signInWithPassword({ email: email, password: pass });
     else if (mode === 'signup') { pendingName = $('a-name').value.trim(); p = sb.auth.signUp({ email: email, password: pass }); }
-    else p = sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/' });
+    else p = sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
     p.then(function (r) {
       btn.disabled = false;
       if (r.error) return authMsg(ruError(r.error), 'err');
@@ -418,7 +418,7 @@
     if (pass.length < 6) { m.textContent = 'Пароль должен быть не короче 6 символов.'; m.className = 'msg err'; return; }
     sb.auth.updateUser({ password: pass }).then(function (r) {
       if (r.error) { m.textContent = ruError(r.error); m.className = 'msg err'; return; }
-      history.replaceState(null, '', '/');
+      history.replaceState(null, '', location.pathname);
       sb.auth.getSession().then(function (s) { enter(s.data.session); });
     });
   });
