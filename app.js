@@ -42,7 +42,7 @@
   function dis() { return VIEW ? ' disabled' : ''; }
   function money(n, c) { return n == null ? '-' : Math.round(n).toLocaleString('ru-RU') + ' ' + (c || D().start.cur); }
 
-  function blankWeek() { return { meet: 0, group: 0, chat: 0, buddy: 0, nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, income: '', insight: '', action: '', recap: '' }; }
+  function blankWeek() { return { meet: 0, group: 0, chat: 0, buddy: 0, practice: 0, nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, income: '', insight: '', action: '', recap: '' }; }
   function blank() {
     var w = []; for (var i = 0; i < 8; i++) w.push(blankWeek());
     return { start: { name: '', cur: '€', date: DEFAULT_START, sit: [0, 0, 0, 0, 0], res: [0, 0, 0, 0, 0] }, weeks: w, end: { res: [0, 0, 0, 0, 0] } };
@@ -78,6 +78,7 @@
       meets: sum(W.map(function (w) { return w.meet; })),
       groups: sum(W.map(function (w) { return w.group; })),
       nights: sum(W.map(function (w) { return sum(w.nights); })),
+      practices: sum(W.map(function (w) { return w.practice ? 1 : 0; })),
       inc: inc.map(function (x) { return x || 0; }),
       tot: sum(filled), best: filled.length ? Math.max.apply(null, filled) : null,
       first: firstIdx >= 0 ? inc[firstIdx] : null, last: lastIdx >= 0 ? inc[lastIdx] : null, multi: firstIdx >= 0 && lastIdx > firstIdx,
@@ -208,7 +209,7 @@
       '<div><span>Среднее состояние</span><strong>' + (stAvg == null ? '-' : stAvg.toFixed(1) + ' из 5') + '</strong></div></div>';
 
     h += '<h3>Каждый участник</h3><div class="tablewrap"><table><thead><tr>' +
-      '<th>Участник</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Деньги: первая → последняя</th><th>Состояние</th><th>Результаты до → после</th>' +
+      '<th>Участник</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Практики</th><th>Деньги: первая → последняя</th><th>Состояние</th><th>Результаты до → после</th>' +
       '</tr></thead><tbody>' + all.map(function (x) {
         var p = x.p, st = x.st, c = p.s.start.cur;
         var mini = '<span class="mini" aria-hidden="true">' + p.s.weeks.map(function (w) { return '<i class="' + (w.meet ? 'y' : '') + '"></i>'; }).join('') + '</span> ';
@@ -220,16 +221,16 @@
         return '<tr class="p" tabindex="0" data-pid="' + esc(p.id) + '">' +
           '<td class="nm"><b>' + esc(pname(p)) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
-          '<td>' + mini + st.meets + '</td><td>' + st.groups + '</td><td>' + st.nights + '</td>' +
+          '<td>' + mini + st.meets + '</td><td>' + st.groups + '</td><td>' + st.nights + '</td><td>' + st.practices + '</td>' +
           '<td>' + m2 + '</td><td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td><td>' + res + '</td></tr>';
       }).join('') + '</tbody></table></div>';
 
-    h += '<h3>Посещаемость по неделям</h3><div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Неделя</th><th>Встреча с Татьяной</th><th>Групповая терапия</th><th>Чат с психотерапевтом</th><th>Бадди</th><th>Ночей в среднем</th></tr></thead><tbody>' +
+    h += '<h3>Посещаемость по неделям</h3><div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Неделя</th><th>Встреча с Татьяной</th><th>Групповая терапия</th><th>Чат с психотерапевтом</th><th>Бадди</th><th>Практика</th><th>Ночей в среднем</th></tr></thead><tbody>' +
       MODULES.map(function (m, i) {
         var ws = P.map(function (p) { return p.s.weeks[i]; });
         var c = function (k) { return ws.filter(function (w) { return w[k]; }).length + ' из ' + N; };
         var n = avg(ws.map(function (w) { return sum(w.nights); }));
-        return '<tr><td>' + (i + 1) + (i === wk ? ' <span class="pill good">сейчас</span>' : '') + '</td><td>' + c('meet') + '</td><td>' + c('group') + '</td><td>' + c('chat') + '</td><td>' + c('buddy') + '</td><td>' + (n == null ? '-' : n.toFixed(1)) + '</td></tr>';
+        return '<tr><td>' + (i + 1) + (i === wk ? ' <span class="pill good">сейчас</span>' : '') + '</td><td>' + c('meet') + '</td><td>' + c('group') + '</td><td>' + c('chat') + '</td><td>' + c('buddy') + '</td><td>' + c('practice') + '</td><td>' + (n == null ? '-' : n.toFixed(1)) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
 
     h += '<h3>С чем пришли участники</h3><div class="hbars">' + SITUATIONS.map(function (t, i) {
@@ -266,17 +267,135 @@
       (VIEW.id !== me.id ? '<button class="ghost danger" type="button" id="del">Удалить трекер</button>' : '') + '</span></div>' : '';
   }
 
+  // ---------- Практики ----------
+  // Практика недели закрыта, пока администратор не откроет её после вебинара.
+  var practices = {}, pw = null, pdraft = null, practicesLoaded = false;
+
+  function rich(t) {
+    return String(t || '').split(/\n\s*\n/).filter(function (p) { return p.trim(); }).map(function (p) {
+      return '<p>' + esc(p.trim()).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>') + '</p>';
+    }).join('');
+  }
+  function gallery(imgs) {
+    imgs = imgs || [];
+    if (!imgs.length) return '';
+    return '<div class="gallery' + (imgs.length === 1 ? ' one' : '') + '">' + imgs.map(function (im) { return '<img src="' + esc(im.url) + '" alt="" loading="lazy">'; }).join('') + '</div>';
+  }
+  function safeLink(u) { return /^https?:\/\//i.test(u || '') ? u : ''; }
+
+  function loadPractices() {
+    return sb.from('practices').select('*').order('week').then(function (r) {
+      practices = {};
+      (r.data || []).forEach(function (p) { practices[p.week] = p; });
+      practicesLoaded = true;
+      if (r.error) syncState('err', 'Практики пока не подключены');
+      if (tab === 'practice' && !(pdraft && pdraft.dirty)) renderPractice();
+    });
+  }
+
+  function renderPractice() {
+    if (pw == null) {
+      var open = Object.keys(practices).filter(function (k) { return practices[k].is_open; }).map(Number);
+      pw = open.length && !admin ? Math.max.apply(null, open) - 1 : currentWeek(S);
+    }
+    var wk = pw + 1, p = practices[wk], h = '';
+    h += '<div class="chips">' + MODULES.map(function (x, i) {
+      var o = practices[i + 1] && practices[i + 1].is_open;
+      return '<button class="chip pchip' + (o ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === pw) + '">' + (i + 1) + '<small>' + (o ? 'открыта' : 'закрыта') + '</small></button>';
+    }).join('') + '</div>';
+    h += '<p class="eyebrow">Практика недели ' + wk + ' · ' + MODULES[pw][0] + '</p>';
+    if (!practicesLoaded) h += '<p class="loading">Загружаем практики…</p>';
+    else if (!p || (!p.is_open && !admin)) {
+      h += '<div class="lock"><b>Практика откроется после вебинара</b><span>Татьяна откроет практику недели ' + wk + ', когда вы пройдёте её вместе на вебинаре. Здесь появятся текст, картинки и материалы.</span></div>';
+    } else {
+      if (!p.is_open) h += '<p style="margin:0 0 14px"><span class="pill warn">Участники пока не видят эту практику</span></p>';
+      h += '<h2>' + esc(p.title || 'Практика недели ' + wk) + '</h2>' + gallery(p.images) + '<div class="prose">' + rich(p.body) + '</div>';
+      if (safeLink(p.link)) h += '<a class="btnlink" href="' + esc(p.link) + '" target="_blank" rel="noopener">Открыть материалы практики</a>';
+      if (p.is_open) h += '<div class="checks">' + chkRow('p-done', 'weeks.' + pw + '.practice', S.weeks[pw].practice, 'Я выполнил(а) практику') + '</div>';
+    }
+    if (admin) h += practiceEditor(wk);
+    $('practice').innerHTML = h;
+  }
+
+  function practiceEditor(wk) {
+    var p = practices[wk] || {};
+    if (!pdraft || pdraft.week !== wk) pdraft = { week: wk, title: p.title || '', body: p.body || '', link: p.link || '', images: (p.images || []).slice(), is_open: !!p.is_open, dirty: false };
+    var d = pdraft;
+    return '<div class="editor"><div class="head"><h3 style="margin:0">Редактор практики недели ' + wk + '</h3>' +
+      '<span class="pill ' + (d.is_open ? 'good' : 'mute') + '">' + (d.is_open ? 'Открыта участникам' : 'Закрыта для участников') + '</span></div>' +
+      '<p class="note" style="margin:0">Это видите только вы. Сначала напишите практику и сохраните, а после вебинара нажмите «Открыть участникам».</p>' +
+      '<label class="f" for="pe-title">Название<input type="text" id="pe-title" data-draft="title" value="' + esc(d.title) + '" placeholder="Например: Письмо себе из будущего"></label>' +
+      '<label class="f" for="pe-body">Текст практики<textarea id="pe-body" data-draft="body" placeholder="Опишите практику. Пустая строка начинает новый абзац, ссылки станут кликабельными.">' + esc(d.body) + '</textarea></label>' +
+      '<label class="f" for="pe-link">Ссылка на запись или материалы, если есть<input type="text" id="pe-link" data-draft="link" value="' + esc(d.link) + '" placeholder="https://"></label>' +
+      '<div><p class="eyebrow" style="margin-bottom:8px">Картинки</p><div class="thumbs">' + d.images.map(function (im, i) {
+        return '<div class="thumb"><img src="' + esc(im.url) + '" alt=""><button type="button" data-rmimg="' + i + '" aria-label="Убрать картинку">✕</button></div>';
+      }).join('') + '<label class="upload" for="pe-file">+ Добавить картинки<input type="file" id="pe-file" accept="image/*" multiple></label></div></div>' +
+      '<div class="actions"><button class="btn" type="button" id="pe-save">Сохранить</button>' +
+      '<button class="ghost gold" type="button" id="pe-toggle">' + (d.is_open ? 'Закрыть от участников' : 'Сохранить и открыть участникам') + '</button>' +
+      '<span class="msg" id="pe-msg" role="status"></span></div></div>';
+  }
+  function peMsg(text, kind) { var m = $('pe-msg'); if (m) { m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : ''); } }
+
+  // Большие фото с телефона уменьшаем до 1600 px, чтобы практики быстро открывались
+  function shrink(file) {
+    return new Promise(function (resolve) {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return resolve(file);
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        var k = Math.min(1, 1600 / Math.max(img.width, img.height));
+        if (k === 1 && file.size < 800000) { URL.revokeObjectURL(url); return resolve(file); }
+        var c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        var g = c.getContext('2d'); g.fillStyle = '#0C1330'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) { resolve(b || file); }, 'image/jpeg', 0.85);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+  function uploadImages(files) {
+    var d = pdraft; if (!d || !files || !files.length) return;
+    peMsg('Загружаем картинки…');
+    Array.prototype.reduce.call(files, function (chain, f) {
+      return chain.then(function () {
+        return shrink(f).then(function (blob) {
+          var ext = blob.type === 'image/jpeg' ? 'jpg' : ((f.name.split('.').pop() || 'img').toLowerCase().replace(/[^a-z0-9]/g, '') || 'img');
+          var path = 'practices/week-' + d.week + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+          return sb.storage.from('media').upload(path, blob, { contentType: blob.type || f.type, upsert: false }).then(function (r) {
+            if (r.error) throw r.error;
+            d.images.push({ path: path, url: sb.storage.from('media').getPublicUrl(path).data.publicUrl });
+          });
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      d.dirty = true; renderPractice(); peMsg('Картинки добавлены. Нажмите «Сохранить».');
+    }, function (e) {
+      renderPractice(); peMsg('Не удалось загрузить картинку: ' + (e && e.message || e), 'err');
+    });
+  }
+  function savePractice(open) {
+    var d = pdraft;
+    var row = { week: d.week, title: d.title.trim(), body: d.body, link: d.link.trim(), images: d.images, is_open: open == null ? d.is_open : open, updated_at: new Date().toISOString() };
+    peMsg('Сохраняем…');
+    sb.from('practices').upsert(row).select().single().then(function (r) {
+      if (r.error) return peMsg('Не удалось сохранить: ' + r.error.message, 'err');
+      practices[d.week] = r.data; pdraft = null; renderPractice();
+      peMsg(r.data.is_open ? 'Сохранено. Участники видят практику.' : 'Сохранено. Участники пока не видят практику.', 'ok');
+    });
+  }
+
   // ---------- Навигация ----------
   function render() {
     renderViewbar();
-    if (tab === 'start') renderStart(); else if (tab === 'weeks') renderWeeks(); else if (tab === 'total') renderTotal(); else renderPeople();
+    if (tab === 'start') renderStart(); else if (tab === 'weeks') renderWeeks(); else if (tab === 'total') renderTotal();
+    else if (tab === 'practice') renderPractice(); else renderPeople();
   }
   function show(t) {
     tab = t;
-    if (t === 'people') VIEW = null;
+    if (t === 'people' || t === 'practice') VIEW = null;
     document.querySelectorAll('#tabs .tab').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'); });
-    ['start', 'weeks', 'total', 'people'].forEach(function (id) { $(id).hidden = id !== t; });
-    $('reset').hidden = t === 'people' || !!VIEW;
+    ['start', 'weeks', 'practice', 'total', 'people'].forEach(function (id) { $(id).hidden = id !== t; });
+    $('reset').hidden = t === 'people' || t === 'practice' || !!VIEW;
     render();
     window.scrollTo(0, 0);
   }
@@ -325,6 +444,13 @@
     }
     if (t.id === 'logout') { sb.auth.signOut(); return; }
     if (t.closest('#tabs') && t.dataset.tab) return show(t.dataset.tab);
+    if (t.classList.contains('pchip')) {
+      if (pdraft && pdraft.dirty && t.dataset.arm !== '1') { t.dataset.arm = '1'; peMsg('Есть несохранённые изменения. Нажмите неделю ещё раз, чтобы уйти без сохранения.', 'err'); return; }
+      pw = Number(t.dataset.pw); pdraft = null; return renderPractice();
+    }
+    if (t.id === 'pe-save') return savePractice(null);
+    if (t.id === 'pe-toggle') return savePractice(!pdraft.is_open);
+    if (t.dataset.rmimg != null) { pdraft.images.splice(Number(t.dataset.rmimg), 1); pdraft.dirty = true; renderPractice(); return peMsg('Картинка убрана. Нажмите «Сохранить».'); }
     if (t.classList.contains('fchip')) { feedWeek = Number(t.dataset.fw); return renderPeople(); }
     if (t.classList.contains('chip')) { cur = Number(t.dataset.w); return renderWeeks(); }
     if (t.classList.contains('col')) { cur = Number(t.dataset.w); return show('weeks'); }
@@ -347,6 +473,8 @@
     if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPerson(row.dataset.pid); }
   });
   document.addEventListener('input', function (e) {
+    var dr = e.target.getAttribute && e.target.getAttribute('data-draft');
+    if (dr && pdraft) { pdraft[dr] = e.target.value; pdraft.dirty = true; return; }
     if (VIEW || !S) return;
     var p = e.target.getAttribute && e.target.getAttribute('data-bind'); if (!p) return;
     set(p, e.target.type === 'checkbox' ? (e.target.checked ? 1 : 0) : e.target.value);
@@ -354,6 +482,7 @@
     if (/^weeks\.\d+\.(meet|group|chat|buddy|nights)/.test(p)) updDone();
   });
   document.addEventListener('change', function (e) {
+    if (e.target.id === 'pe-file') { uploadImages(e.target.files); return; }
     if (VIEW || !S) return;
     if (e.target.id === 's-cur') { set('start.cur', e.target.value); touch(); }
   });
@@ -445,6 +574,7 @@
         $('tabs').insertBefore(b, $('tabs').firstChild);
       } else if (!admin && pt) pt.remove();
       cur = currentWeek(S);
+      pw = null; pdraft = null; loadPractices();
       screen('app');
       syncState('on', isNew ? (admin ? 'Готово' : 'Готово. Татьяна увидит ваши отметки') : savedLabel());
       if (isNew) flush();
