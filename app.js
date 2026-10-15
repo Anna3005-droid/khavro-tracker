@@ -272,7 +272,7 @@
       '<div><span>Среднее состояние</span><strong>' + (stAvg == null ? '-' : stAvg.toFixed(1) + ' из 5') + '</strong></div></div>';
 
     h += '<h3>Каждый участник</h3><div class="tablewrap"><table><thead><tr>' +
-      '<th>Участник</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Практики</th><th>Деньги: первая → последняя</th><th>Состояние</th><th>Результаты до → после</th>' +
+      '<th>Участник</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Практики</th><th>Деньги: первая → последняя</th><th>Состояние</th><th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
       '</tr></thead><tbody>' + all.map(function (x) {
         var p = x.p, st = x.st, c = p.s.start.cur;
         var mini = '<span class="mini" aria-hidden="true">' + p.s.weeks.map(function (w) { return '<i class="' + (w.meet ? 'y' : '') + '"></i>'; }).join('') + '</span> ';
@@ -285,7 +285,8 @@
           '<td class="nm"><b>' + esc(pname(p)) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
           '<td>' + mini + st.meets + '</td><td>' + st.groups + '</td><td>' + st.nights + '</td><td>' + st.practices + '</td>' +
-          '<td>' + m2 + '</td><td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td><td>' + res + '</td></tr>';
+          '<td>' + m2 + '</td><td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td><td>' + res + '</td>' +
+          '<td>' + (p.id !== me.id ? '<button class="ghost danger small" type="button" data-delp="' + esc(p.id) + '">Удалить</button>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
 
     h += '<h3>Посещаемость по неделям</h3><div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Неделя</th><th>Встреча с Татьяной</th><th>Групповая терапия</th><th>Чат с психотерапевтом</th><th>Бадди</th><th>Практики выполнены</th><th>Ночей в среднем</th></tr></thead><tbody>' +
@@ -327,7 +328,7 @@
   function renderViewbar() {
     $('viewbar').innerHTML = VIEW ? '<div class="banner"><p>Вы смотрите трекер участника <b>' + esc(pname(VIEW)) + '</b>. Здесь ничего нельзя изменить.</p>' +
       '<span style="display:flex;gap:8px;flex-wrap:wrap"><button class="ghost gold" type="button" id="back">Вернуться к участникам</button>' +
-      (VIEW.id !== me.id ? '<button class="ghost danger" type="button" id="del">Удалить трекер</button>' : '') + '</span></div>' : '';
+      (VIEW.id !== me.id ? '<button class="ghost danger" type="button" data-delp="' + esc(VIEW.id) + '">Удалить участника</button>' : '') + '</span></div>' : '';
   }
 
   // ---------- Практики ----------
@@ -524,22 +525,39 @@
   window.addEventListener('beforeunload', function (e) { if (saveTimer && (writing || $('sync-text').textContent === 'Сохраняем…')) { e.preventDefault(); e.returnValue = ''; } });
 
   // ---------- События трекера ----------
+  // Удаление участника: первое нажатие спрашивает, второе удаляет аккаунт целиком
+  function deleteParticipant(btn) {
+    var id = btn.dataset.delp, p = people.filter(function (x) { return x.id === id; })[0];
+    if (btn.dataset.arm !== '1') {
+      btn.dataset.arm = '1'; btn.textContent = 'Точно удалить?';
+      setTimeout(function () { if (btn.isConnected && btn.dataset.arm === '1') { btn.dataset.arm = ''; btn.textContent = btn.closest('.banner') ? 'Удалить участника' : 'Удалить'; } }, 4000);
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Удаляем…';
+    sb.rpc('delete_participant', { target: id }).then(function (r) {
+      if (r.error && /delete_participant/.test(r.error.message || '')) {
+        // Функции ещё нет в базе: удаляем хотя бы трекер
+        return sb.from('trackers').delete().eq('user_id', id).then(function (r2) {
+          return r2.error ? r2 : { error: null, partial: true };
+        });
+      }
+      return r;
+    }).then(function (r) {
+      if (r.error) { btn.disabled = false; btn.dataset.arm = ''; btn.textContent = 'Удалить'; return syncState('err', 'Не удалось удалить: ' + r.error.message); }
+      people = people.filter(function (x) { return x.id !== id; });
+      VIEW = null; show('people');
+      toast((p ? pname(p) : 'Участник') + (r.partial ? ': трекер удалён' : ' удалён(а)'));
+    });
+  }
+
   document.addEventListener('click', function (e) {
+    var dp = e.target.closest('[data-delp]');
+    if (dp) { e.stopPropagation(); return deleteParticipant(dp); }
     var row = e.target.closest('tr.p');
     if (row) return openPerson(row.dataset.pid);
     var t = e.target.closest('button'); if (!t || !S) return;
     if (t.id === 'back') return show('people');
     if (t.id === 'refresh') { t.textContent = 'Обновляем…'; return loadPeople(); }
-    if (t.id === 'del') {
-      if (t.dataset.arm === '1') {
-        var id = VIEW.id;
-        sb.from('trackers').delete().eq('user_id', id).then(function (r) {
-          if (r.error) { syncState('err', 'Не удалось удалить: ' + r.error.message); return; }
-          people = people.filter(function (p) { return p.id !== id; }); show('people');
-        });
-      } else { t.dataset.arm = '1'; t.textContent = 'Нажмите ещё раз, чтобы удалить навсегда'; }
-      return;
-    }
     if (t.id === 'logout') { sb.auth.signOut(); return; }
     if (t.closest('#tabs') && t.dataset.tab) return show(t.dataset.tab);
     if (t.classList.contains('pchip')) {
@@ -572,8 +590,8 @@
     }
   });
   document.addEventListener('keydown', function (e) {
-    var row = e.target.closest && e.target.closest('tr.p');
-    if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPerson(row.dataset.pid); }
+    var row = e.target.closest && !e.target.closest('button') && e.target.closest('tr.p');
+    if (row &&(e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPerson(row.dataset.pid); }
   });
   document.addEventListener('input', function (e) {
     var dr = e.target.getAttribute && e.target.getAttribute('data-draft');
