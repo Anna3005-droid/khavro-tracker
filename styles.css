@@ -194,3 +194,14 @@ td.nm small { color: var(--muted); font-size: 11px; }
 .upload { position: relative; display: inline-flex; align-items: center; gap: 8px; border: 1px dashed var(--line); padding: 10px 14px; cursor: pointer; color: var(--gold); font-size: 14px; }
 .upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.plist { display: grid; gap: 14px; }
+.pcard { background: var(--surface); border-top: 1px solid var(--gold); padding: 16px 16px 18px; min-width: 0; }
+.pcard.closed { border-top-color: var(--line-soft); }
+.pcard .editor { margin-top: 18px; padding-top: 18px; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.pnum { font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.pcard.closed .pnum { color: var(--muted); }
+.ptitle { font-family: var(--display); font-size: 26px; font-weight: 500; line-height: 1.15; letter-spacing: 0; text-transform: none; color: var(--ink); margin: 0 0 4px; }
+.pmeta { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+.pcard .prose p:last-child { margin-bottom: 0; }
+.pcard .checks { margin-top: 10px; }
