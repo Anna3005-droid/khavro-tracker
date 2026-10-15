@@ -67,7 +67,7 @@
     if (!d || isNaN(d.getTime())) return 0;
     return Math.min(7, Math.max(0, Math.floor((Date.now() - d.getTime()) / (7 * 864e5))));
   }
-  function done(w) { return w.meet + w.group + w.chat + w.buddy + sum(w.nights); }
+  function done(w) { return w.meet + w.group + w.chat + w.buddy + sum(w.practices || []) + sum(w.nights); }
 
   function stats(s) {
     var W = s.weeks, inc = W.map(function (w) { return num(w.income); }), i;
@@ -128,10 +128,15 @@
       chkRow('w-chat', 'weeks.' + cur + '.chat', w.chat, 'Сообщение психотерапевту в чате', 'Личный психотерапевт отвечает с обратной связью') +
       chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди') +
       '</div></div>';
+    h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + [0, 1, 2].map(function (j) {
+      var p = practices[pkey(cur + 1, j + 1)];
+      if (p && p.is_open) return chkRow('w-p' + j, 'weeks.' + cur + '.practices.' + j, w.practices[j], esc(p.title || 'Практика ' + (j + 1)), esc(p.meta));
+      return '<div class="crow"><span>' + (admin && p ? esc(p.title) : 'Практика ' + (j + 1)) + '<small>Откроется после вебинара</small></span><span class="pill mute">закрыта</span></div>';
+    }).join('') + '</div><p class="scale">Описание и материалы каждой практики во вкладке «Практики».</p></div>';
     h += '<div class="block"><h3>Протокол для подсознания во сне</h3><div class="nights">' + [0, 1, 2, 3, 4, 5, 6].map(function (n) {
       return '<label for="w-n' + n + '"><input class="chk" type="checkbox" id="w-n' + n + '" data-bind="weeks.' + cur + '.nights.' + n + '"' + (w.nights[n] ? ' checked' : '') + dis() + '>' + (n + 1) + '</label>';
     }).join('') + '</div><p class="scale">Отмечайте ночи, когда вы слушали протокол перед сном.</p>';
-    h += '<div class="progress"><strong id="w-done"></strong><span>пунктов недели из 11</span></div></div>';
+    h += '<div class="progress"><strong id="w-done"></strong><span>пунктов недели из 14</span></div></div>';
     h += '<div class="block"><h3>Действие недели</h3><input type="text" id="w-action" data-bind="weeks.' + cur + '.action" value="' + esc(w.action) + '" placeholder="Один шаг, который приведёт к деньгам, а не только к инсайту"' + dis() + '></div>';
     h += '<div class="block"><h3>Деньги недели</h3><div class="row"><label class="f" for="w-income">Поступило за неделю, ' + esc(D().start.cur) + '<input type="number" inputmode="numeric" id="w-income" data-bind="weeks.' + cur + '.income" value="' + esc(w.income) + '" placeholder="0"' + dis() + '></label></div></div>';
     h += '<div class="block"><h3>Состояние: энергия и ясность</h3><div class="scales">' +
@@ -296,6 +301,7 @@
       practicesLoaded = true;
       if (r.error) syncState('err', 'Практики пока не подключены');
       if (tab === 'practice' && !(pdraft && pdraft.dirty)) renderPractice();
+      if (tab === 'weeks') renderWeeks();
     });
   }
 
@@ -513,7 +519,7 @@
     var p = e.target.getAttribute && e.target.getAttribute('data-bind'); if (!p) return;
     set(p, e.target.type === 'checkbox' ? (e.target.checked ? 1 : 0) : e.target.value);
     touch();
-    if (/^weeks\.\d+\.(meet|group|chat|buddy|nights)/.test(p)) updDone();
+    if (/^weeks\.\d+\.(meet|group|chat|buddy|nights|practices)/.test(p)) updDone();
   });
   document.addEventListener('change', function (e) {
     if (e.target.id === 'pe-file') { uploadImages(e.target.files); return; }
