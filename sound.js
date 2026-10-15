@@ -7,7 +7,7 @@
   if (!btn || !AC) { if (btn) btn.hidden = true; return; }
 
   var ctx = null, master = null, on = false;
-  var VOLUME = 0.32;
+  var VOLUME = 0.12;
 
   function build() {
     ctx = new AC();
@@ -15,20 +15,19 @@
     master.gain.value = 0;
     master.connect(ctx.destination);
 
-    // Аккорд: ля мажор с септимой, тёплый и без резкости
+    // Аккорд: только низкие чистые ноты (ля и ми), без звонких высоких призвуков
     var pad = ctx.createBiquadFilter();
-    pad.type = 'lowpass'; pad.frequency.value = 900; pad.Q.value = 0.4;
+    pad.type = 'lowpass'; pad.frequency.value = 420; pad.Q.value = 0.2;
     pad.connect(master);
-    [110, 164.81, 220, 277.18, 329.63, 415.3].forEach(function (f, i) {
+    [110, 164.81, 220].forEach(function (f, i) {
       var o = ctx.createOscillator(), g = ctx.createGain();
       var lfo = ctx.createOscillator(), depth = ctx.createGain();
-      o.type = i < 2 ? 'sine' : 'triangle';
+      o.type = 'sine';
       o.frequency.value = f;
-      o.detune.value = i % 2 ? 5 : -5;
-      g.gain.value = i < 2 ? 0.06 : 0.025;
-      // Каждая нота медленно нарастает и затихает в своём ритме
-      lfo.frequency.value = 0.03 + i * 0.017;
-      depth.gain.value = g.gain.value * 0.85;
+      g.gain.value = [0.07, 0.04, 0.025][i];
+      // Каждая нота очень медленно нарастает и затихает в своём ритме
+      lfo.frequency.value = 0.02 + i * 0.011;
+      depth.gain.value = g.gain.value * 0.6;
       lfo.connect(depth); depth.connect(g.gain);
       o.connect(g); g.connect(pad);
       o.start(); lfo.start();
@@ -40,10 +39,10 @@
     var drift = d[len - 1] - d[0];
     for (i = 0; i < len; i++) d[i] -= drift * i / len; // без щелчка на стыке петли
     var noise = ctx.createBufferSource(); noise.buffer = buf; noise.loop = true;
-    var nf = ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 480;
-    var ng = ctx.createGain(); ng.gain.value = 0.07;
+    var nf = ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 300;
+    var ng = ctx.createGain(); ng.gain.value = 0.035;
     var wave = ctx.createOscillator(), wd = ctx.createGain();
-    wave.frequency.value = 0.09; wd.gain.value = 0.06;
+    wave.frequency.value = 0.07; wd.gain.value = 0.025;
     wave.connect(wd); wd.connect(ng.gain);
     noise.connect(nf); nf.connect(ng); ng.connect(master);
     noise.start(); wave.start();
@@ -59,7 +58,7 @@
   function play() {
     if (!ctx) build();
     ctx.resume();
-    fadeTo(VOLUME, 3);
+    fadeTo(VOLUME, 6);
     on = true; ui(); save('on');
   }
   function stop() {
