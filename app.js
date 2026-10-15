@@ -98,8 +98,53 @@
       return '<button class="dot" type="button" data-path="' + path + '" data-k="' + k + '" aria-label="Оценка ' + k + ' из 5" aria-pressed="' + (val >= k) + '"' + dis() + '></button>';
     }).join('') + '</div>';
   }
-  function chkRow(id, path, val, label, hint) {
-    return '<label class="crow" for="' + id + '"><span>' + label + (hint ? '<small>' + hint + '</small>' : '') + '</span><input class="chk" type="checkbox" id="' + id + '" data-bind="' + path + '"' + (val ? ' checked' : '') + dis() + '></label>';
+  // Линейные иконки 24×24 для вкладок и чек-листа
+  var ICON = {
+    start: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    weeks: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    practice: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
+    total: '<path d="M4 20V11M10 20V5M16 20v-7M21 20H3"/>',
+    people: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.3c3 .1 5.5 2.6 5.5 5.7"/>',
+    meet: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5l5-3v9l-5-3"/>',
+    group: '<circle cx="12" cy="7.5" r="2.6"/><circle cx="5.5" cy="11.5" r="2.1"/><circle cx="18.5" cy="11.5" r="2.1"/><path d="M8 20c0-2.2 1.8-4 4-4s4 1.8 4 4M2 19c.3-1.7 1.7-3 3.5-3M22 19c-.3-1.7-1.7-3-3.5-3"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+    buddy: '<path d="M6.5 3h3l2 5-2.5 1.5a11 11 0 0 0 5.5 5.5L16 12.5l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5a2 2 0 0 1 2-2z"/>',
+    leaf: '<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19l8-8"/>',
+    lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
+  };
+  function svg(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[name] + '</svg>'; }
+
+  function chkRow(id, path, val, label, hint, icon) {
+    return '<label class="crow' + (icon ? ' has-ico' : '') + '" for="' + id + '">' + (icon ? '<span class="ci">' + svg(icon) + '</span>' : '') +
+      '<span>' + label + (hint ? '<small>' + hint + '</small>' : '') + '</span><input class="chk" type="checkbox" id="' + id + '" data-bind="' + path + '"' + (val ? ' checked' : '') + dis() + '></label>';
+  }
+
+  // Кольцо прогресса: при обновлении плавно дорисовывается
+  function setRing(el, v, max) {
+    if (!el) return;
+    var C = 163.4;
+    if (!el.querySelector('.rf')) {
+      el.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" class="rt"/><circle cx="32" cy="32" r="26" class="rf" style="stroke-dasharray:163.4;stroke-dashoffset:163.4"/></svg><span class="rv"><b></b><small></small></span>';
+      void el.offsetWidth;
+    }
+    el.querySelector('.rf').style.strokeDashoffset = (C * (1 - Math.min(1, v / max))).toFixed(1);
+    el.querySelector('.rv b').textContent = v;
+    el.querySelector('.rv small').textContent = 'из ' + max;
+    el.classList.toggle('full', v >= max);
+    el.setAttribute('aria-label', 'Выполнено ' + v + ' из ' + max);
+  }
+
+  // Шапка: приветствие по имени, неделя программы и прогресс этой недели
+  function updHead() {
+    if (!S) return;
+    var first = (S.start.name || '').trim().split(/\s+/)[0];
+    var hr = new Date().getHours(), g = hr < 5 ? 'Доброй ночи' : hr < 12 ? 'Доброе утро' : hr < 18 ? 'Добрый день' : 'Добрый вечер';
+    $('ah-title').innerHTML = g + (first ? ', <em>' + esc(first) + '</em>' : '');
+    var d = new Date((S.start.date || DEFAULT_START) + 'T00:00:00'), wk = currentWeek(S);
+    $('ah-sub').textContent = !isNaN(d.getTime()) && Date.now() < d.getTime()
+      ? 'Программа начнётся ' + d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+      : 'Неделя ' + (wk + 1) + ' из 8 · ' + MODULES[wk][0];
+    setRing($('ah-ring'), done(S.weeks[wk]), 14);
   }
 
   function renderStart() {
@@ -120,23 +165,25 @@
     var w = D().weeks[cur], M = MODULES[cur], h = '';
     h += '<div class="chips" id="chips">' + MODULES.map(function (x, i) { return '<button class="chip" type="button" data-w="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>неделя</small></button>'; }).join('') + '</div>';
     var rng = weekRange(cur);
-    h += '<p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2>';
+    h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
     h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div><div class="theme"><h3>Результат модуля</h3><p>' + M[2] + '</p></div></div>';
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
-      chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной') +
-      chkRow('w-group', 'weeks.' + cur + '.group', w.group, 'Групповая терапия') +
-      chkRow('w-chat', 'weeks.' + cur + '.chat', w.chat, 'Сообщение психотерапевту в чате', 'Личный психотерапевт отвечает с обратной связью') +
-      chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди') +
+      chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной', '', 'meet') +
+      chkRow('w-group', 'weeks.' + cur + '.group', w.group, 'Групповая терапия', '', 'group') +
+      chkRow('w-chat', 'weeks.' + cur + '.chat', w.chat, 'Сообщение психотерапевту в чате', 'Личный психотерапевт отвечает с обратной связью', 'chat') +
+      chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди', '', 'buddy') +
       '</div></div>';
     h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + [0, 1, 2].map(function (j) {
       var p = practices[pkey(cur + 1, j + 1)];
-      if (p && p.is_open) return chkRow('w-p' + j, 'weeks.' + cur + '.practices.' + j, w.practices[j], esc(p.title || 'Практика ' + (j + 1)), esc(p.meta));
-      return '<div class="crow"><span>' + (admin && p ? esc(p.title) : 'Практика ' + (j + 1)) + '<small>Откроется после вебинара</small></span><span class="pill mute">закрыта</span></div>';
+      if (p && p.is_open) return chkRow('w-p' + j, 'weeks.' + cur + '.practices.' + j, w.practices[j], esc(p.title || 'Практика ' + (j + 1)), esc(p.meta), 'leaf');
+      return '<div class="crow has-ico"><span class="ci mute">' + svg('lock') + '</span><span>' + (admin && p ? esc(p.title) : 'Практика ' + (j + 1)) + '<small>Откроется после вебинара</small></span><span class="pill mute">закрыта</span></div>';
     }).join('') + '</div><p class="scale">Описание и материалы каждой практики во вкладке «Практики».</p></div>';
+    var d0 = new Date((D().start.date || DEFAULT_START) + 'T00:00:00');
     h += '<div class="block"><h3>Протокол для подсознания во сне</h3><div class="nights">' + [0, 1, 2, 3, 4, 5, 6].map(function (n) {
-      return '<label for="w-n' + n + '"><input class="chk" type="checkbox" id="w-n' + n + '" data-bind="weeks.' + cur + '.nights.' + n + '"' + (w.nights[n] ? ' checked' : '') + dis() + '>' + (n + 1) + '</label>';
-    }).join('') + '</div><p class="scale">Отмечайте ночи, когда вы слушали протокол перед сном.</p>';
-    h += '<div class="progress"><strong id="w-done"></strong><span>пунктов недели из 14</span></div></div>';
+      var day = isNaN(d0.getTime()) ? null : new Date(d0.getTime() + (cur * 7 + n) * 864e5);
+      var wd = day ? day.toLocaleDateString('ru-RU', { weekday: 'short' }) : 'ночь';
+      return '<label class="night" for="w-n' + n + '"><b>' + wd + '</b><input class="chk moon" type="checkbox" id="w-n' + n + '" data-bind="weeks.' + cur + '.nights.' + n + '"' + (w.nights[n] ? ' checked' : '') + dis() + ' aria-label="' + (day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Ночь ' + (n + 1)) + '">' + (day ? day.getDate() : n + 1) + '</label>';
+    }).join('') + '</div><p class="scale">Отмечайте ночи, когда вы слушали протокол перед сном.</p></div>';
     h += '<div class="block"><h3>Действие недели</h3><input type="text" id="w-action" data-bind="weeks.' + cur + '.action" value="' + esc(w.action) + '" placeholder="Один шаг, который приведёт к деньгам, а не только к инсайту"' + dis() + '></div>';
     h += '<div class="block"><h3>Деньги недели</h3><div class="row"><label class="f" for="w-income">Поступило за неделю, ' + esc(D().start.cur) + '<input type="number" inputmode="numeric" id="w-income" data-bind="weeks.' + cur + '.income" value="' + esc(w.income) + '" placeholder="0"' + dis() + '></label></div></div>';
     h += '<div class="block"><h3>Состояние: энергия и ясность</h3><div class="scales">' +
@@ -145,11 +192,18 @@
       '</div><p class="scale">От 1, когда нет сил, до 5, когда ясно и легко.</p></div>';
     h += '<div class="block"><h3>Главный инсайт</h3><textarea id="w-insight" data-bind="weeks.' + cur + '.insight" placeholder="Главный инсайт недели, своими словами"' + dis() + '>' + esc(w.insight) + '</textarea></div>';
     h += '<div class="block"><h3>Итог недели</h3><textarea id="w-recap" data-bind="weeks.' + cur + '.recap" placeholder="Что изменилось в действиях и в деньгах, что берёте в следующую неделю"' + dis() + '>' + esc(w.recap) + '</textarea></div>';
-    $('weeks').innerHTML = h; updDone();
+    $('weeks').innerHTML = h; lastDone = null; updDone();
     var chip = document.querySelector('.chip[data-w="' + cur + '"]'), box = $('chips');
     if (chip && box) box.scrollLeft = Math.max(0, chip.offsetLeft - 16);
   }
-  function updDone() { var el = $('w-done'); if (el) el.textContent = done(D().weeks[cur]); }
+  var lastDone = null;
+  function updDone() {
+    var v = done(D().weeks[cur]);
+    setRing($('w-ring'), v, 14);
+    if (!VIEW && lastDone != null && lastDone < 14 && v >= 14) toast('Неделя ' + (cur + 1) + ' пройдена полностью ✦');
+    lastDone = v;
+    if (!VIEW) updHead();
+  }
 
   function renderTotal() {
     var s = D(), W = s.weeks, st = stats(s), h = '';
@@ -440,7 +494,16 @@
   }
 
   // ---------- Сохранение ----------
-  function syncState(kind, text) { $('sync').className = 'sync' + (kind ? ' ' + kind : ''); $('sync-text').textContent = text; }
+  function syncState(kind, text) {
+    $('sync').className = 'sync' + (kind ? ' ' + kind : ''); $('sync-text').textContent = text;
+    if (kind === 'err') toast(text, 'err');
+  }
+  var toastTimer = null;
+  function toast(text, kind) {
+    var t = $('toast'); t.textContent = text; t.className = 'toast show' + (kind ? ' ' + kind : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = 'toast' + (kind ? ' ' + kind : ''); }, kind === 'err' ? 4500 : 1600);
+  }
   function savedLabel() { return admin ? 'Сохранено' : 'Сохранено. Ваши отметки видит Татьяна'; }
   function touch() {
     syncState('on', 'Сохраняем…');
@@ -452,7 +515,7 @@
     writing = true;
     sb.from('trackers').upsert({ user_id: me.id, data: S }).then(function (r) {
       if (r.error) { syncState('err', 'Не удалось сохранить. Проверьте интернет, попробуем ещё раз'); again = true; }
-      else syncState('on', savedLabel());
+      else { syncState('on', savedLabel()); if (!$('toast').classList.contains('show')) toast('Сохранено ✓'); }
     }).then(function () {
       writing = false;
       if (again) { again = false; setTimeout(flush, 2000); }
@@ -520,6 +583,7 @@
     set(p, e.target.type === 'checkbox' ? (e.target.checked ? 1 : 0) : e.target.value);
     touch();
     if (/^weeks\.\d+\.(meet|group|chat|buddy|nights|practices)/.test(p)) updDone();
+    if (p === 'start.name' || p === 'start.date') updHead();
   });
   document.addEventListener('change', function (e) {
     if (e.target.id === 'pe-file') { uploadImages(e.target.files); return; }
@@ -534,7 +598,14 @@
     $('auth').hidden = name !== 'auth';
     $('recover').hidden = name !== 'recover';
     $('app').hidden = name !== 'app';
+    $('hero').hidden = name === 'app';
+    $('apphead').hidden = name !== 'app';
+    if (name === 'app') updHead();
   }
+  function decorateTab(b) {
+    if (!b.querySelector('.ti')) b.innerHTML = '<span class="ti">' + svg(b.dataset.tab) + '</span><span class="tl">' + esc(b.textContent) + '</span>';
+  }
+  document.querySelectorAll('#tabs .tab').forEach(decorateTab);
   function authMsg(text, kind) { var m = $('a-msg'); m.textContent = text || ''; m.className = 'msg' + (kind ? ' ' + kind : ''); }
   function setMode(m) {
     mode = m;
@@ -610,7 +681,7 @@
       if (admin && !pt) {
         var b = document.createElement('button');
         b.className = 'tab owner'; b.setAttribute('role', 'tab'); b.id = 't-people'; b.dataset.tab = 'people'; b.setAttribute('aria-selected', 'false');
-        b.textContent = 'Участники';
+        b.textContent = 'Участники'; decorateTab(b);
         $('tabs').insertBefore(b, $('tabs').firstChild);
       } else if (!admin && pt) pt.remove();
       cur = currentWeek(S);

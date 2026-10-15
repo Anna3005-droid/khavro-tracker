@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Onest:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="design.css">
 <style>
   :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   [hidden] { display: none !important; }
@@ -24,18 +25,31 @@
 <div class="wrap">
   <div class="sheet">
     <div class="top"><span>Т Х</span><span>8 недель</span></div>
-    <header class="hero">
+
+    <!-- Большой заголовок: только на экране входа -->
+    <header class="hero" id="hero">
       <p class="by">Психология финансового масштаба</p>
       <h1>Трекер программы <em>на 8 недель</em></h1>
       <p class="lead">Восемь модулей, восемь встреч с Татьяной и восемь групповых терапий. Здесь вы отмечаете, что сделали, что поняли и как меняются ваши деньги.</p>
     </header>
-    <hr class="rule">
+
+    <!-- Компактная шапка после входа -->
+    <header class="apphead" id="apphead" hidden>
+      <div class="ah-text">
+        <p class="by">Психология финансового масштаба</p>
+        <h1 class="ah-title" id="ah-title"></h1>
+        <p class="ah-sub" id="ah-sub"></p>
+      </div>
+      <div class="ring big" id="ah-ring" role="img"></div>
+    </header>
+
+    <div class="orn" aria-hidden="true"><span>✦</span></div>
 
     <p class="loading" id="loading">Загружаем трекер…</p>
 
     <!-- Вход и регистрация -->
     <section id="auth" hidden>
-      <div class="auth" style="margin-top:22px">
+      <div class="auth">
         <div class="switch" role="tablist">
           <button class="tab" type="button" role="tab" id="a-login" aria-selected="true">Вход</button>
           <button class="tab" type="button" role="tab" id="a-signup" aria-selected="false">Регистрация</button>
@@ -53,7 +67,7 @@
 
     <!-- Новый пароль после письма о восстановлении -->
     <section id="recover" hidden>
-      <form id="rec-form" class="auth" style="margin-top:22px" novalidate>
+      <form id="rec-form" class="auth" novalidate>
         <h2>Новый пароль</h2>
         <label class="f" for="rec-pass">Придумайте новый пароль, минимум 6 символов<input type="password" id="rec-pass" autocomplete="new-password" minlength="6" required></label>
         <button class="btn" type="submit">Сохранить пароль</button>
@@ -65,22 +79,29 @@
     <div id="app" hidden>
       <nav class="tabs" role="tablist" aria-label="Разделы трекера" id="tabs">
         <button class="tab" role="tab" id="t-start" data-tab="start" aria-selected="true">Старт</button>
-        <button class="tab" role="tab" id="t-weeks" data-tab="weeks" aria-selected="false">Недели</button>
+        <button class="tab" role="tab" id="t-weeks" data-tab="weeks" aria-selected="false">Неделя</button>
         <button class="tab" role="tab" id="t-practice" data-tab="practice" aria-selected="false">Практики</button>
-        <button class="tab" role="tab" id="t-total" data-tab="total" aria-selected="false">Итоги</button>      </nav>
-      <div class="who"><span>Вы вошли как <b id="who-email"></b></span><button class="ghost" type="button" id="logout">Выйти</button></div>
+        <button class="tab" role="tab" id="t-total" data-tab="total" aria-selected="false">Итоги</button>
+      </nav>
       <main>
         <div id="viewbar"></div>
         <div id="alert"></div>
         <section id="start" role="tabpanel" aria-labelledby="t-start"></section>
         <section id="weeks" role="tabpanel" aria-labelledby="t-weeks" hidden></section>
+        <section id="practice" role="tabpanel" aria-labelledby="t-practice" hidden></section>
         <section id="total" role="tabpanel" aria-labelledby="t-total" hidden></section>
-        <section id="practice" role="tabpanel" aria-labelledby="t-practice" hidden></section>        <section id="people" role="tabpanel" aria-labelledby="t-people" hidden></section>
+        <section id="people" role="tabpanel" aria-labelledby="t-people" hidden></section>
       </main>
-      <div class="foot"><span class="sync" id="sync"><i></i><span id="sync-text"></span></span><button class="ghost" id="reset" type="button">Очистить мой трекер</button></div>
+      <div class="foot">
+        <span class="sync" id="sync"><i></i><span id="sync-text"></span></span>
+        <span class="foot-actions"><button class="ghost" id="reset" type="button">Очистить мой трекер</button><button class="ghost" type="button" id="logout">Выйти</button></span>
+      </div>
+      <p class="whoami">Вы вошли как <b id="who-email"></b></p>
     </div>
   </div>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
