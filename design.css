@@ -193,3 +193,10 @@ input[type=text], input[type=number], input[type=date], input[type=email], input
 .ghost.small { padding: 5px 12px; font-size: 12px; }
 .ghost.danger[data-arm="1"] { background: var(--warn); color: var(--on-gold); border-color: var(--warn); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Доход: старт и итог */
+.income { background: var(--surface); border-radius: var(--radius); padding: 16px 16px 18px; margin-bottom: 14px; }
+.cmp .pair.wide { grid-template-columns: 54px minmax(0, 1fr) auto; }
+.cmp .pair.wide > span:last-child { color: var(--ink); font-variant-numeric: tabular-nums; }
+.inc-pct { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 0; font-family: var(--display); font-size: 34px; font-weight: 500; }
+.inc-pct small { font-family: var(--body); font-size: 13px; color: var(--muted); }

@@ -42,14 +42,17 @@
   function dis() { return VIEW ? ' disabled' : ''; }
   function money(n, c) { return n == null ? '-' : Math.round(n).toLocaleString('ru-RU') + ' ' + (c || D().start.cur); }
 
-  function blankWeek() { return { meet: 0, group: 0, chat: 0, buddy: 0, practices: [0, 0, 0], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, income: '', insight: '', action: '', recap: '' }; }
+  function blankWeek() { return { meet: 0, group: 0, chat: 0, buddy: 0, practices: [0, 0, 0], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, insight: '', action: '', recap: '' }; }
   function blank() {
     var w = []; for (var i = 0; i < 8; i++) w.push(blankWeek());
-    return { start: { name: '', cur: '€', date: DEFAULT_START, sit: [0, 0, 0, 0, 0], res: [0, 0, 0, 0, 0] }, weeks: w, end: { res: [0, 0, 0, 0, 0] } };
+    return { start: { name: '', cur: '€', date: DEFAULT_START, income: '', sit: [0, 0, 0, 0, 0], res: [0, 0, 0, 0, 0] }, weeks: w, end: { income: '', res: [0, 0, 0, 0, 0] } };
   }
   function valid(o) { return o && o.weeks && o.weeks.length === 8 && o.start && o.end; }
   function norm(o) {
     if (o.start.name == null) o.start.name = '';
+    // Доход фиксируется дважды: на старте и в конце программы (в месяц)
+    if (o.start.income == null) o.start.income = '';
+    if (o.end.income == null) o.end.income = '';
     o.weeks.forEach(function (w) { if (!Array.isArray(w.practices)) w.practices = [0, 0, 0]; delete w.practice; });
     return o;
   }
@@ -70,22 +73,18 @@
   function done(w) { return w.meet + w.group + w.chat + w.buddy + sum(w.practices || []) + sum(w.nights); }
 
   function stats(s) {
-    var W = s.weeks, inc = W.map(function (w) { return num(w.income); }), i;
-    var filled = inc.filter(function (x) { return x != null && x > 0; });
-    var states = [];
+    var W = s.weeks, states = [];
     W.forEach(function (w) { if (w.s0) states.push(w.s0); if (w.s1) states.push(w.s1); });
     var rs = s.start.res.filter(Boolean), re = s.end.res.filter(Boolean);
-    var touched = W.filter(function (w) { return done(w) > 0 || w.income !== '' || w.insight || w.action || w.recap || w.s0 || w.s1; }).length;
-    var lastIdx = -1; for (i = 7; i >= 0; i--) if (inc[i] != null && inc[i] > 0) { lastIdx = i; break; }
-    var firstIdx = -1; for (i = 0; i < 8; i++) if (inc[i] != null && inc[i] > 0) { firstIdx = i; break; }
+    var touched = W.filter(function (w) { return done(w) > 0 || w.insight || w.action || w.recap || w.s0 || w.s1; }).length;
+    var a = num(s.start.income), b = num(s.end.income);
     return {
+      incStart: a, incEnd: b,
+      incPct: a != null && b != null && a > 0 ? Math.round((b - a) / a * 100) : null,
       meets: sum(W.map(function (w) { return w.meet; })),
       groups: sum(W.map(function (w) { return w.group; })),
       nights: sum(W.map(function (w) { return sum(w.nights); })),
       practices: sum(W.map(function (w) { return sum(w.practices); })),
-      inc: inc.map(function (x) { return x || 0; }),
-      tot: sum(filled), best: filled.length ? Math.max.apply(null, filled) : null,
-      first: firstIdx >= 0 ? inc[firstIdx] : null, last: lastIdx >= 0 ? inc[lastIdx] : null, multi: firstIdx >= 0 && lastIdx > firstIdx,
       state: states.length ? sum(states) / states.length : null,
       resStart: rs.length ? sum(rs) / rs.length : null, resEnd: re.length ? sum(re) / re.length : null,
       touched: touched
@@ -151,8 +150,11 @@
     var v = D().start, h = '';
     h += '<h2>Точка старта</h2><p class="note">Отметьте, что вам знакомо, и оцените, где вы сейчас. В конце программы вы посмотрите, как изменилось ваше состояние и ваши решения.</p>';
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
-      '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label>' +
-      '<label class="f" for="s-cur">Валюта для записей о деньгах<select id="s-cur" data-bind="start.cur"' + dis() + '>' + ['€', '$', '₴'].map(function (c) { return '<option' + (v.cur === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label></div></div>';
+      '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label></div></div>';
+    h += '<div class="block"><h3>Доход на старте</h3><div class="row">' +
+      '<label class="f" for="s-income">Ваш доход в месяц сейчас<input type="number" inputmode="numeric" id="s-income" data-bind="start.income" value="' + esc(v.income) + '" placeholder="0"' + dis() + '></label>' +
+      '<label class="f" for="s-cur">Валюта<select id="s-cur" data-bind="start.cur"' + dis() + '>' + ['€', '$', '₴'].map(function (c) { return '<option' + (v.cur === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label></div>' +
+      '<p class="scale">В конце программы вы запишете доход ещё раз во вкладке «Итоги» и увидите, как он изменился.</p></div>';
     h += '<div class="block"><h3>Что вы узнаёте в себе</h3><div class="sitlist">' + SITUATIONS.map(function (t, i) {
       return chkRow('sit-' + i, 'start.sit.' + i, v.sit[i], t);
     }).join('') + '</div></div>';
@@ -185,7 +187,6 @@
       return '<label class="night" for="w-n' + n + '"><b>' + wd + '</b><input class="chk moon" type="checkbox" id="w-n' + n + '" data-bind="weeks.' + cur + '.nights.' + n + '"' + (w.nights[n] ? ' checked' : '') + dis() + ' aria-label="' + (day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Ночь ' + (n + 1)) + '">' + (day ? day.getDate() : n + 1) + '</label>';
     }).join('') + '</div><p class="scale">Отмечайте ночи, когда вы слушали протокол перед сном.</p></div>';
     h += '<div class="block"><h3>Действие недели</h3><input type="text" id="w-action" data-bind="weeks.' + cur + '.action" value="' + esc(w.action) + '" placeholder="Один шаг, который приведёт к деньгам, а не только к инсайту"' + dis() + '></div>';
-    h += '<div class="block"><h3>Деньги недели</h3><div class="row"><label class="f" for="w-income">Поступило за неделю, ' + esc(D().start.cur) + '<input type="number" inputmode="numeric" id="w-income" data-bind="weeks.' + cur + '.income" value="' + esc(w.income) + '" placeholder="0"' + dis() + '></label></div></div>';
     h += '<div class="block"><h3>Состояние: энергия и ясность</h3><div class="scales">' +
       '<div class="week"><span>В начале недели</span>' + dotsRow('weeks.' + cur + '.s0', w.s0) + '</div>' +
       '<div class="week"><span>В конце недели</span>' + dotsRow('weeks.' + cur + '.s1', w.s1) + '</div>' +
@@ -207,20 +208,15 @@
 
   function renderTotal() {
     var s = D(), W = s.weeks, st = stats(s), h = '';
-    var top = Math.max(Math.max.apply(null, st.inc), 1);
-    h += '<h2>Итоги программы</h2><p class="note">Цифры собираются из недель. Нажмите на столбец, чтобы открыть неделю.</p>';
+    h += '<h2>Итоги программы</h2><p class="note">Встречи, практики и состояние собираются из недель. Доход вы записываете здесь в конце программы.</p>';
     h += '<div class="kpis">' +
       '<div><span>Встречи с Татьяной</span><strong>' + st.meets + ' из 8</strong></div>' +
       '<div><span>Групповые терапии</span><strong>' + st.groups + ' из 8</strong></div>' +
+      '<div><span>Практики</span><strong>' + st.practices + ' из 24</strong></div>' +
       '<div><span>Ночей с протоколом</span><strong>' + st.nights + ' из 56</strong></div></div>';
-    h += '<div class="kpis">' +
-      '<div><span>Записано за недели программы</span><strong>' + money(st.tot) + '</strong></div>' +
-      '<div><span>Лучшая неделя</span><strong>' + money(st.best) + '</strong></div></div>';
-    h += '<h3>Деньги по неделям</h3><div class="chart"><div class="cols">' + st.inc.map(function (v, i) {
-      return '<button class="col" type="button" data-w="' + i + '" aria-label="Неделя ' + (i + 1) + ': ' + (v ? money(v) : 'нет данных') + '"><span class="bar" style="height:' + (v / top * 100).toFixed(1) + '%"></span></button>';
-    }).join('') + '</div></div>';
-    h += '<div class="axis">' + W.map(function (x, i) { return '<span>' + (i + 1) + '</span>'; }).join('') + '</div>';
-    h += '<p class="legend">Высота столбца: доход недели, шкала от 0 до ' + money(top) + '.</p>';
+    h += '<div class="income"><h3>Доход: старт и итог</h3>' +
+      '<div class="row"><label class="f" for="e-income">Ваш доход в месяц в конце программы, ' + esc(s.start.cur) + '<input type="number" inputmode="numeric" id="e-income" data-bind="end.income" value="' + esc(s.end.income) + '" placeholder="0"' + dis() + '></label></div>' +
+      '<div id="inc-cmp"></div></div>';
     h += '<h3 style="margin-top:26px">Состояние по неделям</h3><div class="statebar">' + W.map(function (w, i) {
       var a = [w.s0, w.s1].filter(Boolean); a = a.length ? sum(a) / a.length : 0;
       return '<i title="Неделя ' + (i + 1) + ': ' + (a ? a.toFixed(1) + ' из 5' : 'нет данных') + '" style="opacity:' + (a ? (0.2 + a / 5 * 0.8).toFixed(2) : 0.08) + '"></i>';
@@ -233,6 +229,19 @@
         dotsRow('end.res.' + i, a) + '</div>';
     }).join('') + '</div><p class="scale">Оцените, где вы сейчас, на тех же пяти результатах, что и на старте.</p>';
     $('total').innerHTML = h;
+    updIncome();
+  }
+  // Сравнение дохода на старте и в конце: обновляется сразу, пока человек вводит цифру
+  function updIncome() {
+    var el = $('inc-cmp'); if (!el) return;
+    var st = stats(D()), c = D().start.cur;
+    if (st.incStart == null) { el.innerHTML = '<p class="scale">Доход на старте не записан. Его можно указать во вкладке «Старт».</p>'; return; }
+    var max = Math.max(st.incStart, st.incEnd || 0, 1);
+    el.innerHTML = '<div class="cmp" style="margin-top:14px"><div class="item">' +
+      '<div class="pair wide"><span>Старт</span><span class="track"><span class="fill" style="width:' + (st.incStart / max * 100).toFixed(0) + '%"></span></span><span>' + money(st.incStart, c) + '</span></div>' +
+      '<div class="pair wide"><span>Итог</span><span class="track"><span class="fill after" style="width:' + ((st.incEnd || 0) / max * 100).toFixed(0) + '%"></span></span><span>' + (st.incEnd == null ? '-' : money(st.incEnd, c)) + '</span></div>' +
+      '</div></div>' +
+      (st.incPct == null ? '' : '<p class="inc-pct ' + (st.incPct >= 0 ? 'up' : 'down') + '">' + (st.incPct > 0 ? '+' : '') + st.incPct + '%<small>' + (st.incPct >= 0 ? 'рост дохода за программу' : 'изменение дохода за программу') + '</small></p>');
   }
 
   // ---------- Кабинет администратора ----------
@@ -272,13 +281,12 @@
       '<div><span>Среднее состояние</span><strong>' + (stAvg == null ? '-' : stAvg.toFixed(1) + ' из 5') + '</strong></div></div>';
 
     h += '<h3>Каждый участник</h3><div class="tablewrap"><table><thead><tr>' +
-      '<th>Участник</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Практики</th><th>Деньги: первая → последняя</th><th>Состояние</th><th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
+      '<th>Участник</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Практики</th><th>Доход в месяц: старт → итог</th><th>Состояние</th><th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
       '</tr></thead><tbody>' + all.map(function (x) {
         var p = x.p, st = x.st, c = p.s.start.cur;
         var mini = '<span class="mini" aria-hidden="true">' + p.s.weeks.map(function (w) { return '<i class="' + (w.meet ? 'y' : '') + '"></i>'; }).join('') + '</span> ';
-        var m2 = st.first == null ? '-' : st.multi
-          ? money(st.first, c) + ' → <span class="' + (st.last >= st.first ? 'up' : 'down') + '">' + money(st.last, c) + '</span>'
-          : money(st.first, c);
+        var m2 = st.incStart == null ? '-' : st.incEnd == null ? money(st.incStart, c)
+          : money(st.incStart, c) + ' → <span class="' + (st.incEnd >= st.incStart ? 'up' : 'down') + '">' + money(st.incEnd, c) + (st.incPct == null ? '' : ' (' + (st.incPct > 0 ? '+' : '') + st.incPct + '%)') + '</span>';
         var res = st.resStart == null ? '-' : st.resStart.toFixed(1) + (st.resEnd == null ? '' : ' → <span class="' + (st.resEnd >= st.resStart ? 'up' : 'down') + '">' + st.resEnd.toFixed(1) + '</span>');
         var sub = [p.email, p.id === me.id ? 'это вы' : ''].filter(Boolean).join(' · ');
         return '<tr class="p" tabindex="0" data-pid="' + esc(p.id) + '">' +
@@ -602,6 +610,7 @@
     touch();
     if (/^weeks\.\d+\.(meet|group|chat|buddy|nights|practices)/.test(p)) updDone();
     if (p === 'start.name' || p === 'start.date') updHead();
+    if (p === 'end.income') updIncome();
   });
   document.addEventListener('change', function (e) {
     if (e.target.id === 'pe-file') { uploadImages(e.target.files); return; }
