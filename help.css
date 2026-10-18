@@ -1,0 +1,80 @@
+/* Помощь куратора: тёплый коралловый акцент, чтобы запрос сразу бросался в глаза */
+:root { --hot: #FF7A59; --hot-soft: rgba(255, 122, 89, 0.14); --on-hot: #2A0E05; }
+
+.btn.warm { background: var(--hot); color: var(--on-hot); }
+.btn.warm.small { padding: 6px 14px; font-size: 13px; }
+.ci.warm { background: var(--hot-soft); color: var(--hot); }
+
+/* Участник: блок «Нужна помощь куратора?» */
+.helpbox {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  border: 1px solid rgba(255, 122, 89, 0.35); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px;
+  background: linear-gradient(120deg, var(--hot-soft), transparent 70%), var(--surface);
+}
+.hb-text { min-width: 0; }
+.hb-text b { display: block; font-weight: 600; }
+.hb-text small { display: block; color: var(--muted); font-size: 13px; }
+.helpform {
+  display: grid; gap: 12px; border: 1px solid var(--hot); border-radius: var(--radius); padding: 16px;
+  margin: 6px 0 14px; background: var(--surface);
+}
+.hf-title { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; color: var(--hot); }
+.hf-title svg, .help-ghost svg, .hb-bell svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.help-ghost { display: inline-flex; align-items: center; gap: 8px; justify-self: start; color: var(--hot); border-color: rgba(255, 122, 89, 0.45); margin-top: 4px; }
+.hsent { display: grid; gap: 8px; margin: -4px 0 14px; }
+.hs-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--radius); background: var(--hot-soft); font-size: 14px; }
+.hs-row span { min-width: 0; overflow-wrap: anywhere; }
+.hs-row b { color: var(--hot); font-weight: 600; }
+.hs-row small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+/* Администратор: яркая плашка на любой вкладке */
+.helpbar {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer;
+  border: 0; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px;
+  background: linear-gradient(100deg, var(--hot), #FF9F5A); color: var(--on-hot); font: inherit;
+  box-shadow: 0 8px 28px rgba(255, 122, 89, 0.35);
+}
+.hb-bell { width: 36px; height: 36px; border-radius: 50%; background: rgba(42, 14, 5, 0.12); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.hb-bell svg { width: 20px; height: 20px; }
+.hb-txt { min-width: 0; }
+.hb-txt b { display: block; font-size: 15px; }
+.hb-txt small { display: block; font-size: 13px; opacity: .85; }
+
+/* Счётчик на вкладке «Участники» */
+.tab { position: relative; }
+.tab .badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--hot); color: var(--on-hot);
+  font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+@media (max-width: 640px) { .tab .badge { position: absolute; top: 2px; right: calc(50% - 22px); } }
+
+/* Администратор: список запросов */
+.helpsec { display: grid; gap: 10px; margin-bottom: 28px; }
+.helpsec h3 { margin-bottom: 2px; color: var(--hot); }
+.helpsec h3::before { background: var(--hot); }
+.hreq { border-radius: var(--radius); padding: 14px 16px; background: var(--surface); border: 1px solid var(--line-soft); display: grid; gap: 6px; min-width: 0; }
+.hreq.st-new { border-color: var(--hot); background: linear-gradient(120deg, var(--hot-soft), transparent 60%), var(--surface); }
+.hreq.st-passed { border-color: var(--warn); }
+.hreq.st-done { opacity: .7; }
+.hr-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hr-top b { font-size: 16px; font-weight: 600; }
+.hr-ctx, .hr-contact { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.hr-contact { color: var(--ink); user-select: all; }
+.hr-text { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.hr-acts { margin-top: 4px; }
+.hr-acts input { width: auto; flex: 1 1 160px; padding: 7px 12px; font-size: 14px; }
+.pill.hot { color: var(--hot); }
+.hdone summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 6px 0; }
+.hdone .hreq { margin-top: 8px; }
+
+@media (max-width: 640px) {
+  .helpbox { grid-template-columns: auto minmax(0, 1fr); }
+  .helpbox .btn { grid-column: 1 / -1; justify-self: stretch; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .helpbar { animation: hotPulse 2.2s ease-in-out infinite; }
+  .helpbar .hb-bell svg { animation: ring 2.2s ease-in-out infinite; transform-origin: 50% 10%; }
+  .tab .badge { animation: pop .4s cubic-bezier(.2, .7, .2, 1); }
+}
+@keyframes hotPulse { 50% { box-shadow: 0 8px 36px rgba(255, 122, 89, 0.6); } }
+@keyframes ring { 0%, 60%, 100% { transform: rotate(0); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-12deg); } 30% { transform: rotate(8deg); } 40% { transform: rotate(-5deg); } }

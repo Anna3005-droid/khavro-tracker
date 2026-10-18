@@ -113,7 +113,9 @@
     chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
     buddy: '<path d="M6.5 3h3l2 5-2.5 1.5a11 11 0 0 0 5.5 5.5L16 12.5l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5a2 2 0 0 1 2-2z"/>',
     leaf: '<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19l8-8"/>',
-    lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
+    lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17h.01"/>'
   };
   function svg(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[name] + '</svg>'; }
 
@@ -172,6 +174,7 @@
     h += '<div class="chips" id="chips">' + MODULES.map(function (x, i) { return '<button class="chip" type="button" data-w="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>неделя</small></button>'; }).join('') + '</div>';
     var rng = weekRange(cur);
     h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
+    h += helpBox('w');
     h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div><div class="theme"><h3>Результат модуля</h3><p>' + M[2] + '</p></div></div>';
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
       chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной', '', 'meet') +
@@ -269,6 +272,7 @@
     var h = '', P = people.slice().sort(function (a, b) { return pname(a).localeCompare(pname(b), 'ru'); });
     h += '<h2>Участники программы</h2><p class="note">Здесь видно всё, что отмечают участники. Список обновляется каждую минуту. Нажмите на строку, чтобы открыть трекер человека.</p>';
     h += '<p style="margin:0 0 20px"><button class="ghost gold" type="button" id="refresh">Обновить сейчас</button></p>';
+    h += helpSection();
     if (!P.length) {
       h += '<div class="empty"><b>Пока никто не заполнил трекер.</b><br>Отправьте участникам ссылку на этот сайт. Каждый регистрируется со своим email, и как только человек отметит первый пункт, он появится здесь.</div>';
       $('people').innerHTML = h; return;
@@ -335,7 +339,10 @@
         return { id: row.user_id, email: row.email, s: norm(row.data), updatedAt: row.updated_at };
       });
       if (VIEW) { var f = people.filter(function (p) { return p.id === VIEW.id; })[0]; if (f) VIEW = f; }
-      if (tab === 'people' || VIEW) render();
+      updHelpAlert();
+      // Не перерисовываем, пока администратор что-то вписывает (например, имя куратора)
+      var ae = document.activeElement, typing = ae && ae.closest && ae.closest('#people input, #people textarea');
+      if ((tab === 'people' || VIEW) && !typing) render();
     });
   }
 
@@ -497,7 +504,8 @@
         c += '<label class="f pc-notes" for="pn-' + key + '">Что я заметил(а) после практики<textarea id="pn-' + key + '" data-bind="weeks.' + cur + '.pnotes.' + j + '" placeholder="Ощущения, мысли, что изменилось">' + esc(S.weeks[cur].pnotes[j]) + '</textarea></label>' +
           '<div class="actions">' + (isDone
             ? '<span class="pc-done big">✓ Выполнено</span><button class="ghost" type="button" data-pdone="' + j + '">Снять отметку</button>'
-            : '<button class="btn" type="button" data-pdone="' + j + '">Отметить выполненной</button>') + '</div>';
+            : '<button class="btn" type="button" data-pdone="' + j + '">Отметить выполненной</button>') + '</div>' +
+          helpBox('p' + j);
       }
       c += '</div>';
     }
@@ -614,6 +622,124 @@
     if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
+  // ---------- Помощь куратора ----------
+  // Участник отправляет запрос: он хранится в его трекере (S.help).
+  // Администратор видит запросы всех участников, а свои отметки «передано» и «решено»
+  // хранит в своём трекере (S.helpAdmin), поэтому новых таблиц в базе не нужно.
+  var helpUI = null, lastHelpCount = null;
+  function fmtWhen(iso) {
+    var d = new Date(iso);
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', '') + ', ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  }
+  function helpCtx(h) {
+    var s = 'Неделя ' + h.week;
+    if (h.practice) {
+      var p = practices[pkey(h.week, h.practice)], def = defPractice(h.week, h.practice);
+      s += ' · Практика ' + h.practice + ': ' + ((p && p.title) || (def ? def[2] : ''));
+    }
+    return s;
+  }
+  function activeHelp() { return (S.help || []).filter(function (h) { return !h.cancelled; }); }
+
+  // Блок для участника: кнопка, форма и статус отправленного запроса
+  function helpBox(key) {
+    if (VIEW) return '';
+    var isPractice = key.charAt(0) === 'p', mine = activeHelp(), h = '';
+    var formOpen = helpUI && helpUI.key === key;
+    if (!formOpen) {
+      if (isPractice) return '<button class="ghost help-ghost" type="button" data-help="' + key + '">' + svg('help') + 'Нужна помощь с этой практикой</button>';
+      h += '<div class="helpbox"><span class="ci warm">' + svg('help') + '</span><div class="hb-text"><b>Нужна помощь куратора?</b><small>Если застряли, стало тяжело или непонятна практика, куратор свяжется с вами.</small></div>' +
+        '<button class="btn warm" type="button" data-help="' + key + '">Позвать куратора</button></div>';
+    } else {
+      h += '<div class="helpform"><p class="hf-title">' + svg('help') + (isPractice ? 'Помощь с практикой' : 'Позвать куратора') + '</p>' +
+        '<label class="f" for="help-text">Что случилось? Можно коротко<textarea id="help-text" data-hdraft="text" placeholder="Например: не получается выполнить практику, поднялось много эмоций">' + esc(helpUI.text) + '</textarea></label>' +
+        '<label class="f" for="help-contact">Как с вами быстрее связаться, если нужно<input type="text" id="help-contact" data-hdraft="contact" value="' + esc(helpUI.contact) + '" placeholder="Телефон или Telegram"></label>' +
+        '<div class="actions"><button class="btn warm" type="button" data-hsend="1">Отправить куратору</button><button class="ghost" type="button" data-hclose="1">Отмена</button></div></div>';
+    }
+    if (!isPractice && mine.length) {
+      h += '<div class="hsent">' + mine.map(function (r) {
+        return '<div class="hs-row"><span><b>Запрос отправлен</b> ' + fmtWhen(r.at) + ' · ' + esc(helpCtx(r)) + '<small>Куратор свяжется с вами.' + (r.text ? ' Ваше сообщение: «' + esc(r.text) + '»' : '') + '</small></span>' +
+          '<button class="ghost small" type="button" data-hcancel="' + esc(r.id) + '">Отменить</button></div>';
+      }).join('') + '</div>';
+    }
+    return h;
+  }
+  function sendHelp() {
+    var text = (helpUI.text || '').trim(), contact = (helpUI.contact || '').trim();
+    if (!S.help) S.help = [];
+    S.help.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), week: cur + 1, practice: helpUI.practice, text: text, contact: contact });
+    helpUI = null;
+    clearTimeout(saveTimer); flush();
+    toast('Запрос отправлен куратору ✓');
+    render();
+  }
+
+  // Администратор: список запросов
+  function helpRequests() {
+    var st = (S && S.helpAdmin) || {}, out = [];
+    people.forEach(function (p) {
+      (p.s.help || []).forEach(function (h) { if (!h.cancelled) out.push({ p: p, h: h, st: st[h.id] || null }); });
+    });
+    return out.sort(function (a, b) { return String(b.h.at).localeCompare(String(a.h.at)); });
+  }
+  function helpSection() {
+    var all = helpRequests();
+    if (!all.length) return '';
+    var active = all.filter(function (x) { return !x.st || x.st.state !== 'done'; }), done = all.filter(function (x) { return x.st && x.st.state === 'done'; });
+    var item = function (x) {
+      var st = x.st, state = st ? st.state : 'new', who = esc(pname(x.p));
+      var contacts = [x.p.email, x.h.contact].filter(Boolean).map(esc).join(' · ');
+      var pill = state === 'new' ? '<span class="pill hot">Новый</span>' : state === 'passed' ? '<span class="pill warn">Передано: ' + esc(st.curator || 'куратору') + '</span>' : '<span class="pill good">Решено</span>';
+      var acts = state === 'new'
+        ? '<input type="text" id="hc-' + esc(x.h.id) + '" placeholder="Имя куратора" aria-label="Имя куратора"><button class="btn warm small" type="button" data-hpass="' + esc(x.h.id) + '">Передать куратору</button><button class="ghost small" type="button" data-hdone="' + esc(x.h.id) + '">Решено</button>'
+        : state === 'passed' ? '<button class="ghost small" type="button" data-hdone="' + esc(x.h.id) + '">Решено</button>'
+        : '<button class="ghost small" type="button" data-hreopen="' + esc(x.h.id) + '">Вернуть в работу</button>';
+      return '<article class="hreq st-' + state + '"><div class="hr-top"><b>' + who + '</b>' + pill + '</div>' +
+        '<p class="hr-ctx">' + esc(helpCtx(x.h)) + ' · ' + fmtWhen(x.h.at) + '</p>' +
+        (x.h.text ? '<p class="hr-text">' + esc(x.h.text) + '</p>' : '') +
+        (contacts ? '<p class="hr-contact">' + contacts + '</p>' : '') +
+        '<div class="actions hr-acts">' + acts + '</div></article>';
+    };
+    return '<section class="helpsec" id="help"><h3>Запросы помощи куратора</h3>' +
+      (active.length ? active.map(item).join('') : '<p class="note">Новых запросов нет.</p>') +
+      (done.length ? '<details class="hdone"><summary>Решённые: ' + done.length + '</summary>' + done.map(item).join('') + '</details>' : '') +
+      '</section>';
+  }
+  function setHelpState(id, state) {
+    if (!S.helpAdmin) S.helpAdmin = {};
+    if (state === 'passed') {
+      var inp = $('hc-' + id), name = inp ? inp.value.trim() : '';
+      if (!name) { if (inp) inp.focus(); return toast('Впишите имя куратора', 'err'); }
+      S.helpAdmin[id] = { state: 'passed', curator: name, at: new Date().toISOString() };
+      toast('Передано куратору: ' + name);
+    } else if (state === 'done') {
+      S.helpAdmin[id] = { state: 'done', curator: S.helpAdmin[id] && S.helpAdmin[id].curator, at: new Date().toISOString() };
+      toast('Отмечено как решённое');
+    } else delete S.helpAdmin[id];
+    clearTimeout(saveTimer); flush();
+    renderPeople(); updHelpAlert();
+  }
+
+  // Яркое напоминание для администратора на любой вкладке
+  function updHelpAlert() {
+    if (!admin) return;
+    var fresh = helpRequests().filter(function (x) { return !x.st; });
+    var n = fresh.length, bar = $('helpbar'), tabBtn = $('t-people');
+    if (tabBtn) {
+      var b = tabBtn.querySelector('.badge');
+      if (n && !b) { b = document.createElement('span'); b.className = 'badge'; tabBtn.appendChild(b); }
+      if (b) { if (n) b.textContent = n; else b.remove(); }
+    }
+    var names = fresh.map(function (x) { return pname(x.p).split(/\s+/)[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    bar.innerHTML = n ? '<button class="helpbar" type="button" data-gohelp="1"><span class="hb-bell">' + svg('bell') + '</span><span class="hb-txt"><b>Нужна помощь куратора: ' + n + '</b><small>' + esc(names.slice(0, 3).join(', ')) + (names.length > 3 ? ' и ещё ' + (names.length - 3) : '') + ' · открыть</small></span></button>' : '';
+    document.title = (n ? '(' + n + ') ' : '') + 'Трекер 8 недель';
+    if (lastHelpCount != null && n > lastHelpCount) {
+      toast('Новый запрос помощи куратора');
+      try { if (navigator.vibrate) navigator.vibrate([120, 80, 120]); } catch (e) {}
+    }
+    lastHelpCount = n;
+  }
+
   // ---------- Навигация ----------
   function render() {
     renderViewbar();
@@ -704,6 +830,26 @@
       if (pdraft && pdraft.dirty && t.dataset.arm !== '1') { t.dataset.arm = '1'; peMsg('Есть несохранённые изменения. Нажмите неделю ещё раз, чтобы уйти без сохранения.', 'err'); return; }
       cur = Number(t.dataset.pw); pdraft = null; return renderPractice();
     }
+    if (t.dataset.help) {
+      var hk = t.dataset.help;
+      helpUI = { key: hk, practice: hk.charAt(0) === 'p' ? Number(hk.slice(1)) + 1 : null, text: '', contact: (activeHelp().slice(-1)[0] || {}).contact || '' };
+      render(); var ht = $('help-text'); if (ht) ht.focus();
+      return;
+    }
+    if (t.dataset.hclose) { helpUI = null; return render(); }
+    if (t.dataset.hsend) return sendHelp();
+    if (t.dataset.hcancel) {
+      (S.help || []).forEach(function (h) { if (h.id === t.dataset.hcancel) h.cancelled = true; });
+      clearTimeout(saveTimer); flush(); toast('Запрос отменён'); return render();
+    }
+    if (t.dataset.hpass) return setHelpState(t.dataset.hpass, 'passed');
+    if (t.dataset.hdone) return setHelpState(t.dataset.hdone, 'done');
+    if (t.dataset.hreopen) return setHelpState(t.dataset.hreopen, 'new');
+    if (t.dataset.gohelp) {
+      show('people');
+      var hs = $('help'); if (hs) hs.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      return;
+    }
     if (t.dataset.pcard) { openCards[t.dataset.pcard] = !openCards[t.dataset.pcard]; return renderPractice(); }
     if (t.dataset.gopr != null) { e.preventDefault(); return goPractice(Number(t.dataset.gopr)); }
     if (t.dataset.pdone != null) {
@@ -751,6 +897,8 @@
   document.addEventListener('input', function (e) {
     var dr = e.target.getAttribute && e.target.getAttribute('data-draft');
     if (dr && pdraft) { pdraft[dr] = e.target.value; pdraft.dirty = true; return; }
+    var hd = e.target.getAttribute && e.target.getAttribute('data-hdraft');
+    if (hd && helpUI) { helpUI[hd] = e.target.value; return; }
     if (VIEW || !S) return;
     var p = e.target.getAttribute && e.target.getAttribute('data-bind'); if (!p) return;
     set(p, e.target.type === 'checkbox' ? (e.target.checked ? 1 : 0) : e.target.value);
@@ -868,7 +1016,8 @@
       if (admin) {
         show('people'); loadPeople();
         clearInterval(peopleTimer);
-        peopleTimer = setInterval(function () { if (tab === 'people' && !document.hidden) loadPeople(); }, 60000);
+        // Раз в минуту проверяем отметки и новые запросы помощи, на любой вкладке
+        peopleTimer = setInterval(function () { if (!document.hidden) loadPeople(); }, 60000);
       } else show('start');
     });
   }
