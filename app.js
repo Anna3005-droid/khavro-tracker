@@ -31,10 +31,19 @@
 
   var tab = 'start', cur = 0, S = null, me = null, admin = false;
   var people = [], VIEW = null, feedWeek = 0, peopleTimer = null;
-  var saveTimer = null, writing = false, again = false, booted = false, pendingName = '';
+  var saveTimer = null, writing = false, again = false, booted = false, pendingName = '', pendingTg = '';
 
   function $(id) { return document.getElementById(id); }
   function esc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  // Ник в Telegram: принимаем «@anna», «anna», «t.me/anna»; возвращаем «@anna» или '' если ник неправильный
+  function tgNick(v) {
+    var s = String(v || '').trim().replace(/^https?:\/\//i, '').replace(/^(t\.me|telegram\.me)\//i, '').replace(/^@/, '');
+    return /^[A-Za-z0-9_]{4,32}$/.test(s) ? '@' + s : '';
+  }
+  function tgLink(v) {
+    var n = tgNick(v);
+    return n ? '<a href="https://t.me/' + n.slice(1) + '" target="_blank" rel="noopener">' + n + '</a>' : esc(v || '');
+  }
   function num(v) { if (v === '' || v == null) return null; var n = Number(v); return isFinite(n) ? n : null; }
   function sum(a) { return a.reduce(function (x, y) { return x + y; }, 0); }
   function avg(a) { a = a.filter(function (x) { return x != null; }); return a.length ? sum(a) / a.length : null; }
@@ -50,6 +59,7 @@
   function valid(o) { return o && o.weeks && o.weeks.length === 8 && o.start && o.end; }
   function norm(o) {
     if (o.start.name == null) o.start.name = '';
+    if (o.start.tg == null) o.start.tg = '';
     // Доход фиксируется дважды: на старте и в конце программы (в месяц)
     if (o.start.income == null) o.start.income = '';
     if (o.end.income == null) o.end.income = '';
@@ -156,6 +166,7 @@
     var v = D().start, h = '';
     h += '<h2>Точка старта</h2><p class="note">Отметьте, что вам знакомо, и оцените, где вы сейчас. В конце программы вы посмотрите, как изменилось ваше состояние и ваши решения.</p>';
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
+      '<label class="f" for="s-tg">Ник в Telegram<input type="text" id="s-tg" data-bind="start.tg" value="' + esc(v.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"' + dis() + '></label>' +
       '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label></div></div>';
     h += '<div class="block"><h3>Доход на старте</h3><div class="row">' +
       '<label class="f" for="s-income">Ваш доход в месяц сейчас<input type="number" inputmode="numeric" id="s-income" data-bind="start.income" value="' + esc(v.income) + '" placeholder="0"' + dis() + '></label>' +
@@ -298,7 +309,7 @@
         var m2 = st.incStart == null ? '-' : st.incEnd == null ? money(st.incStart, c)
           : money(st.incStart, c) + ' → <span class="' + (st.incEnd >= st.incStart ? 'up' : 'down') + '">' + money(st.incEnd, c) + (st.incPct == null ? '' : ' (' + (st.incPct > 0 ? '+' : '') + st.incPct + '%)') + '</span>';
         var res = st.resStart == null ? '-' : st.resStart.toFixed(1) + (st.resEnd == null ? '' : ' → <span class="' + (st.resEnd >= st.resStart ? 'up' : 'down') + '">' + st.resEnd.toFixed(1) + '</span>');
-        var sub = [p.email, p.id === me.id ? 'это вы' : ''].filter(Boolean).join(' · ');
+        var sub = [tgNick(p.s.start.tg), p.email, p.id === me.id ? 'это вы' : ''].filter(Boolean).join(' · ');
         return '<tr class="p" tabindex="0" data-pid="' + esc(p.id) + '">' +
           '<td class="nm"><b>' + esc(pname(p)) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
@@ -658,9 +669,10 @@
       }
     } else {
       h += '<div class="helpform"><p class="hf-title">' + svg('chat') + (isPractice ? 'Написать куратору об этой практике' : 'Написать куратору') + '</p>' +
-        '<label class="f" for="help-text">Что случилось? Можно коротко<textarea id="help-text" data-hdraft="text" placeholder="Например: не получается выполнить практику, поднялось много эмоций">' + esc(helpUI.text) + '</textarea></label>' +
-        '<label class="f" for="help-contact">Как с вами быстрее связаться, если нужно<input type="text" id="help-contact" data-hdraft="contact" value="' + esc(helpUI.contact) + '" placeholder="Телефон или Telegram"></label>' +
-        '<p class="scale" style="margin:0">Куратор ответит ' + HELP_RESPONSE + '.</p>' +
+        '<label class="f" for="help-text">Ваш вопрос<textarea id="help-text" data-hdraft="text" placeholder="Например: не получается выполнить практику, поднялось много эмоций">' + esc(helpUI.text) + '</textarea></label>' +
+        // Ник спрашиваем только у тех, кто зарегистрировался до появления этого поля
+        (tgNick(S.start.tg) ? '' : '<label class="f" for="help-tg">Ваш ник в Telegram, чтобы куратор мог вам написать<input type="text" id="help-tg" data-hdraft="tg" value="' + esc(helpUI.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"></label>') +
+        '<p class="scale" style="margin:0">Куратор напишет вам в Telegram ' + (tgNick(S.start.tg) ? '(' + esc(tgNick(S.start.tg)) + ') ' : '') + HELP_RESPONSE + '.</p>' +
         '<div class="actions"><button class="btn" type="button" data-hsend="1">Отправить</button><button class="ghost" type="button" data-hclose="1">Отмена</button></div></div>';
     }
     if (mine.length) {
@@ -673,7 +685,13 @@
     return h;
   }
   function sendHelp() {
-    var text = (helpUI.text || '').trim(), contact = (helpUI.contact || '').trim();
+    var text = (helpUI.text || '').trim();
+    if (!tgNick(S.start.tg)) {
+      var nick = tgNick(helpUI.tg);
+      if (!nick) return toast('Напишите ник в Telegram, например @anna_ivanova', 'err');
+      S.start.tg = nick;
+    }
+    var contact = tgNick(S.start.tg);
     if (!S.help) S.help = [];
     S.help.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), week: cur + 1, practice: helpUI.practice, text: text, contact: contact });
     var id = S.help[S.help.length - 1].id;
@@ -726,7 +744,8 @@
     var active = all.filter(function (x) { return !x.st || x.st.state !== 'done'; }), done = all.filter(function (x) { return x.st && x.st.state === 'done'; });
     var item = function (x) {
       var st = x.st, state = st ? st.state : 'new', who = esc(pname(x.p));
-      var contacts = [x.p.email, x.h.contact].filter(Boolean).map(esc).join(' · ');
+      var nickHtml = tgNick(x.h.contact) || tgNick(x.p.s.start.tg) ? tgLink(x.h.contact || x.p.s.start.tg) : esc(x.h.contact || '');
+      var contacts = [nickHtml, esc(x.p.email || '')].filter(Boolean).join(' · ');
       var pill = state === 'new' ? '<span class="pill hot">Новый</span>' : state === 'passed' ? '<span class="pill warn">Передано: ' + esc(st.curator || 'куратору') + '</span>' : '<span class="pill good">Решено</span>';
       var acts = state === 'new'
         ? '<input type="text" id="hc-' + esc(x.h.id) + '" placeholder="Имя куратора" aria-label="Имя куратора"><button class="btn warm small" type="button" data-hpass="' + esc(x.h.id) + '">Передать куратору</button><button class="ghost small" type="button" data-hdone="' + esc(x.h.id) + '">Решено</button>'
@@ -974,6 +993,7 @@
     $('a-login').setAttribute('aria-selected', String(m === 'login'));
     $('a-signup').setAttribute('aria-selected', String(m === 'signup'));
     $('a-name-wrap').hidden = m !== 'signup';
+    $('a-tg-wrap').hidden = m !== 'signup';
     $('a-pass-wrap').hidden = m === 'forgot';
     $('a-forgot').hidden = m !== 'login';
     $('a-pass').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
@@ -1001,10 +1021,11 @@
     if (!email) return authMsg('Введите email.', 'err');
     if (mode !== 'forgot' && pass.length < 6) return authMsg('Пароль должен быть не короче 6 символов.', 'err');
     if (mode === 'signup' && !$('a-name').value.trim()) return authMsg('Напишите, как вас зовут.', 'err');
+    if (mode === 'signup' && !tgNick($('a-tg').value)) return authMsg('Напишите ник в Telegram, например @anna_ivanova. Его можно посмотреть в Telegram: Настройки, затем Имя пользователя.', 'err');
     btn.disabled = true; authMsg('Секунду…');
     var p;
     if (mode === 'login') p = sb.auth.signInWithPassword({ email: email, password: pass });
-    else if (mode === 'signup') { pendingName = $('a-name').value.trim(); p = sb.auth.signUp({ email: email, password: pass }); }
+    else if (mode === 'signup') { pendingName = $('a-name').value.trim(); pendingTg = tgNick($('a-tg').value); p = sb.auth.signUp({ email: email, password: pass }); }
     else p = sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
     p.then(function (r) {
       btn.disabled = false;
@@ -1038,6 +1059,7 @@
       var row = r[0].data, isNew = !row || !valid(row.data);
       S = isNew ? blank() : norm(row.data);
       if (isNew && pendingName) S.start.name = pendingName;
+      if (isNew && pendingTg) S.start.tg = pendingTg;
       admin = r[1].data === true;
       var pt = $('t-people');
       if (admin && !pt) {

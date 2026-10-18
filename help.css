@@ -81,3 +81,6 @@
 }
 @keyframes hotPulse { 50% { box-shadow: 0 8px 36px rgba(255, 122, 89, 0.6); } }
 @keyframes ring { 0%, 60%, 100% { transform: rotate(0); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-12deg); } 30% { transform: rotate(8deg); } 40% { transform: rotate(-5deg); } }
+
+/* Подсказка под полем ника при регистрации */
+label.f .hint { font-size: 12px; color: var(--muted); }
