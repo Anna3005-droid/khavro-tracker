@@ -42,7 +42,7 @@
   function dis() { return VIEW ? ' disabled' : ''; }
   function money(n, c) { return n == null ? '-' : Math.round(n).toLocaleString('ru-RU') + ' ' + (c || D().start.cur); }
 
-  function blankWeek() { return { meet: 0, group: 0, chat: 0, buddy: 0, practices: [0, 0, 0], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, insight: '', action: '', recap: '' }; }
+  function blankWeek() { return { meet: 0, group: 0, chat: 0, buddy: 0, practices: [0, 0, 0], pnotes: ['', '', ''], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, insight: '', action: '', recap: '' }; }
   function blank() {
     var w = []; for (var i = 0; i < 8; i++) w.push(blankWeek());
     return { start: { name: '', cur: '€', date: DEFAULT_START, income: '', sit: [0, 0, 0, 0, 0], res: [0, 0, 0, 0, 0] }, weeks: w, end: { income: '', res: [0, 0, 0, 0, 0] } };
@@ -53,7 +53,11 @@
     // Доход фиксируется дважды: на старте и в конце программы (в месяц)
     if (o.start.income == null) o.start.income = '';
     if (o.end.income == null) o.end.income = '';
-    o.weeks.forEach(function (w) { if (!Array.isArray(w.practices)) w.practices = [0, 0, 0]; delete w.practice; });
+    o.weeks.forEach(function (w) {
+      if (!Array.isArray(w.practices)) w.practices = [0, 0, 0];
+      if (!Array.isArray(w.pnotes)) w.pnotes = ['', '', ''];
+      delete w.practice; delete w.income;
+    });
     return o;
   }
   function set(path, val) { var p = path.split('.'), last = p.pop(), o = p.reduce(function (a, k) { return a[k]; }, S); o[last] = val; }
@@ -176,10 +180,12 @@
       chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди', '', 'buddy') +
       '</div></div>';
     h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + [0, 1, 2].map(function (j) {
-      var p = practices[pkey(cur + 1, j + 1)];
-      if (p && p.is_open) return chkRow('w-p' + j, 'weeks.' + cur + '.practices.' + j, w.practices[j], esc(p.title || 'Практика ' + (j + 1)), esc(p.meta), 'leaf');
-      return '<div class="crow has-ico"><span class="ci mute">' + svg('lock') + '</span><span>' + (admin && p ? esc(p.title) : 'Практика ' + (j + 1)) + '<small>Откроется после вебинара</small></span><span class="pill mute">закрыта</span></div>';
-    }).join('') + '</div><p class="scale">Описание и материалы каждой практики во вкладке «Практики».</p></div>';
+      var p = practices[pkey(cur + 1, j + 1)], def = defPractice(cur + 1, j + 1);
+      var title = esc((p && p.title) || (def ? def[2] : 'Практика ' + (j + 1)));
+      var go = VIEW ? '' : '<button class="plink" type="button" data-gopr="' + j + '">Открыть практику →</button>';
+      if (p && p.is_open) return chkRow('w-p' + j, 'weeks.' + cur + '.practices.' + j, w.practices[j], title, esc(p.meta) + go, 'leaf');
+      return '<div class="crow has-ico"><span class="ci mute">' + svg('lock') + '</span><span>' + title + '<small>Станет доступна после встречи с Татьяной</small></span><span class="pill mute">закрыта</span></div>';
+    }).join('') + '</div></div>';
     var d0 = new Date((D().start.date || DEFAULT_START) + 'T00:00:00');
     h += '<div class="block"><h3>Протокол для подсознания во сне</h3><div class="nights">' + [0, 1, 2, 3, 4, 5, 6].map(function (n) {
       var day = isNaN(d0.getTime()) ? null : new Date(d0.getTime() + (cur * 7 + n) * 864e5);
@@ -341,7 +347,7 @@
 
   // ---------- Практики ----------
   // В каждой неделе три практики. Каждая закрыта, пока администратор не откроет её после вебинара.
-  var practices = {}, pw = null, pdraft = null, practicesLoaded = false;
+  var practices = {}, pdraft = null, practicesLoaded = false;
   function pkey(week, num) { return week + '-' + num; }
   function weekPractices(week) { return [1, 2, 3].map(function (n) { return practices[pkey(week, n)] || null; }); }
 
@@ -413,57 +419,123 @@
     });
   }
 
+  // Содержимое практики хранится в поле body как JSON: суть, для чего, шаги, материалы.
+  // Старые практики (обычный текст в body) читаются как «для чего».
+  function unpack(p) {
+    var b = (p && p.body) || '', o = null;
+    if (b.charAt(0) === '{') { try { o = JSON.parse(b); } catch (e) { o = null; } }
+    if (!o || o.v !== 2) o = { summary: b.split(/\n\s*\n/)[0] || '', purpose: b, steps: [], media: [] };
+    o.steps = (o.steps || []).filter(Boolean); o.media = (o.media || []).slice();
+    if (p && safeLink(p.link) && !o.media.some(function (m) { return m.url === p.link; })) o.media.unshift({ url: p.link, name: 'Материалы практики' });
+    return o;
+  }
+  function defPractice(week, num) { return DEFAULT_PRACTICES.filter(function (d) { return d[0] === week && d[1] === num; })[0]; }
+
+  function mediaKind(u) {
+    u = String(u || '').toLowerCase().split('?')[0];
+    if (/\.(mp3|m4a|wav|ogg|oga|aac)$/.test(u)) return 'audio';
+    if (/\.(mp4|webm|mov|m4v)$/.test(u)) return 'video';
+    if (/youtube\.com|youtu\.be|vimeo\.com|rutube\.ru/.test(u)) return 'watch';
+    if (/\.(pdf|docx?|pptx?|xlsx?|txt)$/.test(u)) return 'file';
+    return 'link';
+  }
+  function mediaHtml(list) {
+    return list.filter(function (m) { return safeLink(m.url); }).map(function (m) {
+      var k = mediaKind(m.url), name = esc(m.name || ''), url = esc(m.url);
+      if (k === 'audio') return '<div class="media"><p class="mname">' + (name || 'Аудио') + '</p><audio controls preload="none" src="' + url + '"></audio></div>';
+      if (k === 'video') return '<div class="media"><p class="mname">' + (name || 'Видео') + '</p><video controls preload="metadata" playsinline src="' + url + '"></video></div>';
+      var label = k === 'watch' ? 'Смотреть видео' : k === 'file' ? 'Открыть файл' : 'Открыть материалы';
+      return '<a class="mlink" href="' + url + '" target="_blank" rel="noopener">' + (name ? name + ' · ' : '') + label + ' →</a>';
+    }).join('');
+  }
+
+  var openCards = {};
   function renderPractice() {
-    if (pw == null) {
-      var open = Object.keys(practices).filter(function (k) { return practices[k].is_open; }).map(function (k) { return practices[k].week; });
-      pw = open.length && !admin ? Math.max.apply(null, open) - 1 : currentWeek(S);
-    }
-    var wk = pw + 1, list = weekPractices(wk), h = '';
+    var wk = cur + 1, list = weekPractices(wk), w = S.weeks[cur], h = '';
+    var doneN = sum(w.practices);
     h += '<div class="chips">' + MODULES.map(function (x, i) {
       var n = weekPractices(i + 1).filter(function (p) { return p && p.is_open; }).length;
-      return '<button class="chip pchip' + (n ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === pw) + '">' + (i + 1) + '<small>' + n + ' из 3</small></button>';
+      return '<button class="chip pchip' + (n ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + n + ' из 3</small></button>';
     }).join('') + '</div>';
-    h += '<p class="eyebrow">Неделя ' + wk + '</p><h2>' + MODULES[pw][0] + '</h2>';
-    h += '<p class="note">Каждая практика открывается после того, как вы пройдёте её вместе с Татьяной на вебинаре.</p>';
+    h += '<div class="mod-head"><h2>Модуль ' + wk + ' · <em>' + MODULES[cur][0] + '</em></h2>' +
+      '<div class="mod-prog"><span>Выполнено <b>' + doneN + '</b> из 3</span><span class="thin" role="img" aria-label="Выполнено ' + doneN + ' из 3"><i style="width:' + (doneN / 3 * 100).toFixed(0) + '%"></i></span></div></div>';
     if (!practicesLoaded) { $('practice').innerHTML = h + '<p class="loading">Загружаем практики…</p>'; return; }
-    h += '<div class="plist">' + list.map(function (p, j) {
-      var num = j + 1, open = p && p.is_open, show = p && (open || admin);
-      var editing = admin && pdraft && pdraft.week === wk && pdraft.num === num;
-      var c = '<article class="pcard' + (open ? '' : ' closed') + '"><div class="phead"><span class="pnum">Практика ' + num + '</span>' +
-        (admin ? '<span class="pill ' + (open ? 'good' : 'mute') + '">' + (open ? 'открыта' : 'закрыта') + '</span>' : (open ? '' : '<span class="pill mute">откроется после вебинара</span>')) + '</div>';
-      if (show) {
-        c += '<h3 class="ptitle">' + esc(p.title || 'Практика ' + num) + '</h3>' + (p.meta ? '<p class="pmeta">' + esc(p.meta) + '</p>' : '');
-        if (open || admin) c += gallery(p.images) + '<div class="prose">' + rich(p.body) + '</div>';
-        if (safeLink(p.link)) c += '<a class="btnlink" href="' + esc(p.link) + '" target="_blank" rel="noopener">Открыть материалы</a>';
-        if (open) c += '<div class="checks">' + chkRow('p-done-' + num, 'weeks.' + pw + '.practices.' + j, S.weeks[pw].practices[j], 'Я выполнил(а) эту практику') + '</div>';
-      } else {
-        c += '<p class="pmeta" style="margin:0">' + (admin ? 'Практика ещё не написана.' : 'Здесь появятся описание, картинки и материалы.') + '</p>';
-      }
-      if (admin && !editing) {
-        c += '<div class="actions" style="margin-top:14px"><button class="ghost" type="button" data-pedit="' + num + '">' + (p ? 'Изменить' : 'Написать практику') + '</button>' +
-          (p ? '<button class="ghost gold" type="button" data-ptoggle="' + num + '">' + (open ? 'Закрыть от участников' : 'Открыть участникам') + '</button>' : '') + '</div>';
-      }
-      if (editing) c += practiceEditor();
-      return c + '</article>';
-    }).join('') + '</div>';
+    h += '<div class="plist">' + list.map(function (p, j) { return practiceCard(p, j); }).join('') + '</div>';
     $('practice').innerHTML = h;
   }
 
+  function practiceCard(p, j) {
+    var wk = cur + 1, num = j + 1, nn = '0' + num, key = pkey(wk, num), def = defPractice(wk, num);
+    var open = !!(p && p.is_open), visible = !!(p && (open || admin));
+    var title = (p && p.title) || (def ? def[2] : 'Практика ' + num);
+    var isDone = !!S.weeks[cur].practices[j];
+    var editing = admin && pdraft && pdraft.week === wk && pdraft.num === num;
+    if (!visible) {
+      return '<article class="pc locked" id="pc-' + key + '"><span class="pc-num" aria-hidden="true">' + nn + '</span><div class="pc-body">' +
+        '<p class="pc-eyebrow">Практика ' + nn + '</p><h3 class="pc-title">' + esc(title) + '</h3>' +
+        '<p class="pc-lock"><span class="ci mute">' + svg('lock') + '</span>' + (admin ? 'Практика ещё не написана' : 'Станет доступна после встречи с Татьяной') + '</p>' +
+        (admin ? '<div class="actions"><button class="ghost" type="button" data-pedit="' + num + '">Написать практику</button></div>' + (editing ? practiceEditor() : '') : '') +
+        '</div></article>';
+    }
+    var o = unpack(p), expanded = !!openCards[key] || editing;
+    var c = '<article class="pc' + (isDone ? ' done' : '') + (expanded ? ' open' : '') + (open ? '' : ' draft') + '" id="pc-' + key + '">' +
+      '<span class="pc-num" aria-hidden="true">' + nn + '</span><div class="pc-body">' +
+      '<div class="pc-top"><p class="pc-eyebrow">Практика ' + nn + '</p>' +
+      (isDone ? '<span class="pc-done">✓ Выполнено</span>' : '') +
+      (admin ? '<span class="pill ' + (open ? 'good' : 'mute') + '">' + (open ? 'открыта' : 'закрыта для участников') + '</span>' : '') + '</div>' +
+      '<h3 class="pc-title">' + esc(title) + '</h3>' +
+      (o.summary ? '<p class="pc-sum">' + esc(o.summary) + '</p>' : '') +
+      (p.meta ? '<span class="pc-meta">' + esc(p.meta) + '</span>' : '') +
+      '<button class="pc-toggle" type="button" data-pcard="' + key + '" aria-expanded="' + expanded + '">' + (expanded ? 'Свернуть ↑' : 'Открыть практику →') + '</button>';
+    if (expanded) {
+      c += '<div class="pc-detail">';
+      if (o.purpose && o.purpose.trim() !== (o.summary || '').trim()) c += '<h4>Для чего</h4><div class="prose">' + rich(o.purpose) + '</div>';
+      if (o.steps.length) c += '<h4>Как выполнять</h4><ol class="steps">' + o.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>';
+      var mats = gallery(p.images) + mediaHtml(o.media);
+      if (mats) c += '<h4>Материалы</h4>' + mats;
+      if (open) {
+        c += '<label class="f pc-notes" for="pn-' + key + '">Что я заметил(а) после практики<textarea id="pn-' + key + '" data-bind="weeks.' + cur + '.pnotes.' + j + '" placeholder="Ощущения, мысли, что изменилось">' + esc(S.weeks[cur].pnotes[j]) + '</textarea></label>' +
+          '<div class="actions">' + (isDone
+            ? '<span class="pc-done big">✓ Выполнено</span><button class="ghost" type="button" data-pdone="' + j + '">Снять отметку</button>'
+            : '<button class="btn" type="button" data-pdone="' + j + '">Отметить выполненной</button>') + '</div>';
+      }
+      c += '</div>';
+    }
+    if (admin && !editing) {
+      c += '<div class="actions pc-admin"><button class="ghost" type="button" data-pedit="' + num + '">Изменить</button>' +
+        '<button class="ghost gold" type="button" data-ptoggle="' + num + '">' + (open ? 'Закрыть от участников' : 'Открыть участникам') + '</button></div>';
+    }
+    if (editing) c += practiceEditor();
+    return c + '</div></article>';
+  }
+
   function startEdit(num) {
-    var p = practices[pkey(pw + 1, num)] || {};
-    pdraft = { week: pw + 1, num: num, title: p.title || '', meta: p.meta || '', body: p.body || '', link: p.link || '', images: (p.images || []).slice(), is_open: !!p.is_open, dirty: false };
+    var p = practices[pkey(cur + 1, num)] || {}, def = defPractice(cur + 1, num), o = unpack(p);
+    pdraft = {
+      week: cur + 1, num: num, title: p.title || (def ? def[2] : ''), meta: p.meta || (def ? def[3] : ''),
+      summary: o.summary || '', purpose: o.purpose || '', stepsText: o.steps.join('\n'), media: o.media.slice(),
+      images: (p.images || []).slice(), is_open: !!p.is_open, newName: '', newUrl: '', dirty: false
+    };
     renderPractice();
   }
   function practiceEditor() {
     var d = pdraft;
     return '<div class="editor">' +
       '<label class="f" for="pe-title">Название<input type="text" id="pe-title" data-draft="title" value="' + esc(d.title) + '"></label>' +
-      '<label class="f" for="pe-meta">Формат и время<input type="text" id="pe-meta" data-draft="meta" value="' + esc(d.meta) + '" placeholder="Например: Запись · 25 минут лёжа"></label>' +
-      '<label class="f" for="pe-body">Описание практики<textarea id="pe-body" data-draft="body" placeholder="Пустая строка начинает новый абзац, ссылки станут кликабельными.">' + esc(d.body) + '</textarea></label>' +
-      '<label class="f" for="pe-link">Ссылка на запись или материалы, если есть<input type="text" id="pe-link" data-draft="link" value="' + esc(d.link) + '" placeholder="https://"></label>' +
+      '<label class="f" for="pe-summary">Коротко о сути, одна строка на карточке<input type="text" id="pe-summary" data-draft="summary" value="' + esc(d.summary) + '" placeholder="Зачем выполнять эту практику"></label>' +
+      '<label class="f" for="pe-meta">Формат и длительность<input type="text" id="pe-meta" data-draft="meta" value="' + esc(d.meta) + '" placeholder="Например: Письменная практика · 15 минут"></label>' +
+      '<label class="f" for="pe-purpose">Для чего практика<textarea id="pe-purpose" data-draft="purpose" placeholder="Подробнее, что даёт практика. Пустая строка начинает новый абзац.">' + esc(d.purpose) + '</textarea></label>' +
+      '<label class="f" for="pe-steps">Инструкция по шагам, каждый шаг с новой строки<textarea id="pe-steps" data-draft="stepsText" placeholder="Сядьте удобно и включите запись&#10;Ответьте письменно на первый вопрос&#10;…">' + esc(d.stepsText) + '</textarea></label>' +
       '<div><p class="eyebrow" style="margin-bottom:8px">Картинки</p><div class="thumbs">' + d.images.map(function (im, i) {
         return '<div class="thumb"><img src="' + esc(im.url) + '" alt=""><button type="button" data-rmimg="' + i + '" aria-label="Убрать картинку">✕</button></div>';
       }).join('') + '<label class="upload" for="pe-file">+ Добавить картинки<input type="file" id="pe-file" accept="image/*" multiple></label></div></div>' +
+      '<div><p class="eyebrow" style="margin-bottom:8px">Видео, аудио и файлы</p><div class="mlist">' + d.media.map(function (m, i) {
+        return '<div class="mrow"><span>' + esc(m.name || m.url) + '<small>' + esc({ audio: 'аудио', video: 'видео', watch: 'видео по ссылке', file: 'файл', link: 'ссылка' }[mediaKind(m.url)]) + '</small></span><button class="ghost small" type="button" data-rmmedia="' + i + '">Убрать</button></div>';
+      }).join('') + '</div>' +
+      '<div class="row" style="margin-top:8px"><label class="f" for="pe-mname">Название (необязательно)<input type="text" id="pe-mname" data-draft="newName" value="' + esc(d.newName) + '" placeholder="Запись медитации"></label>' +
+      '<label class="f" for="pe-murl">Ссылка на YouTube, Google Диск и т. п.<input type="text" id="pe-murl" data-draft="newUrl" value="' + esc(d.newUrl) + '" placeholder="https://"></label></div>' +
+      '<div class="actions" style="margin-top:8px"><button class="ghost" type="button" id="pe-madd">Добавить ссылку</button>' +
+      '<label class="upload" for="pe-mfile">+ Загрузить аудио, видео или PDF<input type="file" id="pe-mfile" accept="audio/*,video/*,.pdf,.doc,.docx" multiple></label></div></div>' +
       '<div class="actions"><button class="btn" type="button" id="pe-save">Сохранить</button>' +
       '<button class="ghost" type="button" id="pe-cancel">Отмена</button>' +
       '<span class="msg" id="pe-msg" role="status"></span></div></div>';
@@ -487,44 +559,59 @@
       img.src = url;
     });
   }
-  function uploadImages(files) {
+  // Загрузка в хранилище: картинки уменьшаются, аудио, видео и файлы идут как есть
+  function uploadFiles(files, asMedia) {
     var d = pdraft; if (!d || !files || !files.length) return;
-    peMsg('Загружаем картинки…');
+    peMsg(asMedia ? 'Загружаем файлы… Большое видео может грузиться несколько минут.' : 'Загружаем картинки…');
     Array.prototype.reduce.call(files, function (chain, f) {
       return chain.then(function () {
-        return shrink(f).then(function (blob) {
-          var ext = blob.type === 'image/jpeg' ? 'jpg' : ((f.name.split('.').pop() || 'img').toLowerCase().replace(/[^a-z0-9]/g, '') || 'img');
-          var path = 'practices/week-' + d.week + '-' + d.num + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
-          return sb.storage.from('media').upload(path, blob, { contentType: blob.type || f.type, upsert: false }).then(function (r) {
+        if (f.size > 50 * 1024 * 1024) throw new Error('файл «' + f.name + '» больше 50 МБ. Загрузите его на YouTube или Google Диск и добавьте ссылкой');
+        return (asMedia ? Promise.resolve(f) : shrink(f)).then(function (blob) {
+          var ext = blob.type === 'image/jpeg' && !asMedia ? 'jpg' : ((f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin');
+          var path = 'practices/week-' + d.week + '-' + d.num + '/' + (asMedia ? 'files/' : '') + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+          return sb.storage.from('media').upload(path, blob, { contentType: blob.type || f.type || 'application/octet-stream', upsert: false }).then(function (r) {
             if (r.error) throw r.error;
-            d.images.push({ path: path, url: sb.storage.from('media').getPublicUrl(path).data.publicUrl });
+            var url = sb.storage.from('media').getPublicUrl(path).data.publicUrl;
+            if (asMedia) d.media.push({ url: url, name: f.name.replace(/\.[^.]+$/, ''), path: path });
+            else d.images.push({ path: path, url: url });
           });
         });
       });
     }, Promise.resolve()).then(function () {
-      d.dirty = true; renderPractice(); peMsg('Картинки добавлены. Нажмите «Сохранить».');
+      d.dirty = true; renderPractice(); peMsg('Добавлено. Нажмите «Сохранить».');
     }, function (e) {
-      renderPractice(); peMsg('Не удалось загрузить картинку: ' + (e && e.message || e), 'err');
+      renderPractice(); peMsg('Не удалось загрузить: ' + (e && e.message || e), 'err');
     });
   }
   function savePractice() {
     var d = pdraft;
-    var row = { week: d.week, num: d.num, title: d.title.trim(), meta: d.meta.trim(), body: d.body, link: d.link.trim(), images: d.images, is_open: d.is_open, updated_at: new Date().toISOString() };
+    var body = JSON.stringify({
+      v: 2, summary: d.summary.trim(), purpose: d.purpose,
+      steps: d.stepsText.split('\n').map(function (s) { return s.replace(/^\s*\d+[.)]\s*/, '').trim(); }).filter(Boolean),
+      media: d.media
+    });
+    var row = { week: d.week, num: d.num, title: d.title.trim(), meta: d.meta.trim(), body: body, link: '', images: d.images, is_open: d.is_open, updated_at: new Date().toISOString() };
     peMsg('Сохраняем…');
     sb.from('practices').upsert(row).select().single().then(function (r) {
       if (r.error) return peMsg('Не удалось сохранить: ' + r.error.message, 'err');
-      practices[pkey(d.week, d.num)] = r.data; pdraft = null; renderPractice();
-      syncState('on', r.data.is_open ? 'Практика сохранена, участники её видят' : 'Практика сохранена, участники пока её не видят');
+      practices[pkey(d.week, d.num)] = r.data; pdraft = null; openCards[pkey(d.week, d.num)] = true; renderPractice();
+      toast(r.data.is_open ? 'Сохранено, участники видят практику' : 'Сохранено, участники пока не видят практику');
     });
   }
   function togglePractice(num, btn) {
-    var p = practices[pkey(pw + 1, num)]; if (!p) return;
+    var p = practices[pkey(cur + 1, num)]; if (!p) return;
     btn.disabled = true;
     sb.from('practices').update({ is_open: !p.is_open, updated_at: new Date().toISOString() }).eq('week', p.week).eq('num', p.num).select().single().then(function (r) {
       if (r.error) { btn.disabled = false; return syncState('err', 'Не удалось изменить доступ: ' + r.error.message); }
       practices[pkey(p.week, p.num)] = r.data; renderPractice();
-      syncState('on', r.data.is_open ? 'Практика ' + num + ' недели ' + p.week + ' открыта участникам' : 'Практика ' + num + ' недели ' + p.week + ' закрыта');
+      toast(r.data.is_open ? 'Практика ' + num + ' открыта участникам' : 'Практика ' + num + ' закрыта');
     });
+  }
+  function goPractice(j) {
+    openCards[pkey(cur + 1, j + 1)] = true;
+    show('practice');
+    var el = $('pc-' + pkey(cur + 1, j + 1));
+    if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
   // ---------- Навигация ----------
@@ -615,8 +702,23 @@
     if (t.closest('#tabs') && t.dataset.tab) return show(t.dataset.tab);
     if (t.classList.contains('pchip')) {
       if (pdraft && pdraft.dirty && t.dataset.arm !== '1') { t.dataset.arm = '1'; peMsg('Есть несохранённые изменения. Нажмите неделю ещё раз, чтобы уйти без сохранения.', 'err'); return; }
-      pw = Number(t.dataset.pw); pdraft = null; return renderPractice();
+      cur = Number(t.dataset.pw); pdraft = null; return renderPractice();
     }
+    if (t.dataset.pcard) { openCards[t.dataset.pcard] = !openCards[t.dataset.pcard]; return renderPractice(); }
+    if (t.dataset.gopr != null) { e.preventDefault(); return goPractice(Number(t.dataset.gopr)); }
+    if (t.dataset.pdone != null) {
+      var pj = Number(t.dataset.pdone), pv = S.weeks[cur].practices[pj] ? 0 : 1;
+      S.weeks[cur].practices[pj] = pv; touch(); renderPractice();
+      if (pv) toast('Практика выполнена ✓');
+      return;
+    }
+    if (t.id === 'pe-madd') {
+      var u = (pdraft.newUrl || '').trim();
+      if (!safeLink(u)) return peMsg('Вставьте ссылку, которая начинается с https://', 'err');
+      pdraft.media.push({ url: u, name: (pdraft.newName || '').trim() }); pdraft.newUrl = ''; pdraft.newName = ''; pdraft.dirty = true;
+      renderPractice(); return peMsg('Ссылка добавлена. Нажмите «Сохранить».');
+    }
+    if (t.dataset.rmmedia != null) { pdraft.media.splice(Number(t.dataset.rmmedia), 1); pdraft.dirty = true; renderPractice(); return peMsg('Убрано. Нажмите «Сохранить».'); }
     if (t.id === 'pe-save') return savePractice();
     if (t.id === 'pe-cancel') { pdraft = null; return renderPractice(); }
     if (t.dataset.pedit) {
@@ -658,7 +760,8 @@
     if (p === 'end.income') updIncome();
   });
   document.addEventListener('change', function (e) {
-    if (e.target.id === 'pe-file') { uploadImages(e.target.files); return; }
+    if (e.target.id === 'pe-file') { uploadFiles(e.target.files, false); return; }
+    if (e.target.id === 'pe-mfile') { uploadFiles(e.target.files, true); return; }
     if (VIEW || !S) return;
     if (e.target.id === 's-cur') { set('start.cur', e.target.value); touch(); }
   });
@@ -757,7 +860,7 @@
         $('tabs').insertBefore(b, $('tabs').firstChild);
       } else if (!admin && pt) pt.remove();
       cur = currentWeek(S);
-      pw = null; pdraft = null; loadPractices();
+      pdraft = null; openCards = {}; loadPractices();
       screen('app');
       syncState('on', isNew ? (admin ? 'Готово' : 'Готово. Татьяна увидит ваши отметки') : savedLabel());
       if (isNew) flush();
