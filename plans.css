@@ -1,0 +1,20 @@
+/* Тарифы: выбор на вкладке «Старт» и метки в кабинете */
+.plans { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.plan {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; cursor: pointer;
+  background: var(--surface2); color: var(--ink); border: 1px solid var(--line-soft); border-radius: 12px; font: 500 15px var(--body);
+  transition: border-color .2s, background-color .2s;
+}
+.plan small { font-size: 11px; color: var(--gold); }
+.plan.on { border-color: var(--gold); background: rgba(201, 162, 75, 0.14); }
+.plan.on b { color: var(--gold); }
+.plan:disabled { cursor: default; }
+.plan-inc { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+.plan-inc li { display: flex; gap: 8px; }
+.plan-inc li::before { content: "✓"; color: var(--gold); }
+.plan-count { display: flex; flex-wrap: wrap; gap: 8px; margin: -12px 0 26px; }
+.pill.plan-rec { color: var(--muted); }
+.pill.plan-flow { color: #8FB3E8; }
+.pill.plan-deep { color: var(--gold); }
+.pill.plan-vip { color: #E8A3C9; }
+@media (max-width: 480px) { .plans { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

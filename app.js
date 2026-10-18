@@ -31,7 +31,7 @@
 
   var tab = 'start', cur = 0, S = null, me = null, admin = false;
   var people = [], VIEW = null, feedWeek = 0, peopleTimer = null;
-  var saveTimer = null, writing = false, again = false, booted = false, pendingName = '', pendingTg = '';
+  var saveTimer = null, writing = false, again = false, booted = false, pendingName = '', pendingTg = '', pendingPlan = '';
 
   function $(id) { return document.getElementById(id); }
   function esc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -60,6 +60,7 @@
   function norm(o) {
     if (o.start.name == null) o.start.name = '';
     if (o.start.tg == null) o.start.tg = '';
+    if (o.start.plan == null) o.start.plan = '';
     // Доход фиксируется дважды: на старте и в конце программы (в месяц)
     if (o.start.income == null) o.start.income = '';
     if (o.end.income == null) o.end.income = '';
@@ -84,13 +85,29 @@
     if (!d || isNaN(d.getTime())) return 0;
     return Math.min(7, Math.max(0, Math.floor((Date.now() - d.getTime()) / (7 * 864e5))));
   }
-  function done(w) { return w.meet + w.group + w.chat + w.buddy + sum(w.practices || []) + sum(w.nights); }
+  // Тарифы программы. От тарифа зависит, что показывает трекер:
+  // «Записи» смотрят встречи в записи и задают вопросы в общем чате (без куратора),
+  // «Глубина» и VIP получают личную работу «Точка сборки», VIP ещё 4 индивидуальные сессии.
+  var PLANS = [
+    { id: 'rec', name: 'Записи', inc: ['Занятия в записи, доступ через сутки после эфира', 'Базовые упражнения и психотехники', 'Материалы 3 месяца', 'Общий чат потока'] },
+    { id: 'flow', name: 'Поток', inc: ['Всё из «Записей»', 'Живое участие во всех занятиях с вопросами', 'Куратор', 'Материалы 6 месяцев', 'Приложение «Проработчик денег»'] },
+    { id: 'deep', name: 'Глубина', main: true, inc: ['Всё из «Потока»', 'Личная работа «Точка сборки» с Татьяной', 'Работа с травмами развития', 'Разбор своего случая в группе', '3 месяца в группе «Метафизика бизнеса»', 'Материалы навсегда', 'VIP-чат с ответами Татьяны'] },
+    { id: 'vip', name: 'VIP', inc: ['Всё из «Глубины»', '4 глубинные сессии индивидуально', 'Личный маршрут проработки', 'Прямая связь с Татьяной между сессиями'] }
+  ];
+  function plan(s) { var id = (s || D()).start.plan; return PLANS.filter(function (p) { return p.id === id; })[0] || null; }
+  function planId(s) { var p = plan(s); return p ? p.id : ''; }
+  function isRec(s) { return planId(s) === 'rec'; }
+  function isVip(s) { return planId(s) === 'vip'; }
+  function hasPersonal(s) { var id = planId(s); return id === 'deep' || id === 'vip' || id === ''; }
+  function maxDone(s) { return 14 + (isVip(s) ? 1 : 0); }
+  function done(w, s) { return w.meet + w.group + w.chat + w.buddy + sum(w.practices || []) + sum(w.nights) + (isVip(s) ? (w.vip || 0) : 0); }
+  function planPill(s) { var p = plan(s); return p ? '<span class="pill plan-' + p.id + '">' + p.name + '</span>' : '<span class="pill mute">тариф не выбран</span>'; }
 
   function stats(s) {
     var W = s.weeks, states = [];
     W.forEach(function (w) { if (w.s0) states.push(w.s0); if (w.s1) states.push(w.s1); });
     var rs = s.start.res.filter(Boolean), re = s.end.res.filter(Boolean);
-    var touched = W.filter(function (w) { return done(w) > 0 || w.insight || w.action || w.recap || w.s0 || w.s1; }).length;
+    var touched = W.filter(function (w) { return done(w, s) > 0 || w.insight || w.action || w.recap || w.s0 || w.s1; }).length;
     var a = num(s.start.income), b = num(s.end.income);
     return {
       incStart: a, incEnd: b,
@@ -125,6 +142,7 @@
     leaf: '<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19l8-8"/>',
     lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
     bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17h.01"/>'
   };
   function svg(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[name] + '</svg>'; }
@@ -159,7 +177,7 @@
     $('ah-sub').textContent = !isNaN(d.getTime()) && Date.now() < d.getTime()
       ? 'Программа начнётся ' + d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
       : 'Неделя ' + (wk + 1) + ' из 8 · ' + MODULES[wk][0];
-    setRing($('ah-ring'), done(S.weeks[wk]), 14);
+    setRing($('ah-ring'), done(S.weeks[wk], S), maxDone(S));
   }
 
   function renderStart() {
@@ -168,6 +186,7 @@
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
       '<label class="f" for="s-tg">Ник в Telegram<input type="text" id="s-tg" data-bind="start.tg" value="' + esc(v.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"' + dis() + '></label>' +
       '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label></div></div>';
+    h += planBlock();
     h += '<div class="block"><h3>Доход на старте</h3><div class="row">' +
       '<label class="f" for="s-income">Ваш доход в месяц сейчас<input type="number" inputmode="numeric" id="s-income" data-bind="start.income" value="' + esc(v.income) + '" placeholder="0"' + dis() + '></label>' +
       '<label class="f" for="s-cur">Валюта<select id="s-cur" data-bind="start.cur"' + dis() + '>' + ['€', '$', '₴'].map(function (c) { return '<option' + (v.cur === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label></div>' +
@@ -180,15 +199,31 @@
     }).join('') + '</div><p class="scale">От 1, когда это совсем не про меня, до 5, когда это уже так.</p></div>';
     $('start').innerHTML = h;
   }
+  // Выбор тарифа на вкладке «Старт»: четыре карточки, у выбранной виден состав
+  function planBlock() {
+    var cur0 = planId(), h = '<div class="block" id="plan-block"><h3>Ваш тариф</h3>';
+    if (!cur0 && !VIEW) h += '<p class="scale" style="margin:0 0 12px">Выберите тариф, который вы купили. От него зависит, что показывает трекер.</p>';
+    h += '<div class="plans">' + PLANS.map(function (p) {
+      var on = p.id === cur0;
+      return '<button class="plan' + (on ? ' on' : '') + '" type="button" data-plan="' + p.id + '" aria-pressed="' + on + '"' + dis() + '>' +
+        '<b>' + p.name + '</b>' + (p.main ? '<small>основной</small>' : '') + '</button>';
+    }).join('') + '</div>';
+    var sel = plan();
+    if (sel) h += '<ul class="plan-inc">' + sel.inc.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
+    return h + '</div>';
+  }
   function renderWeeks() {
     var w = D().weeks[cur], M = MODULES[cur], h = '';
     h += '<div class="chips" id="chips">' + MODULES.map(function (x, i) { return '<button class="chip" type="button" data-w="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>неделя</small></button>'; }).join('') + '</div>';
     var rng = weekRange(cur);
     h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
+    if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Выберите ваш тариф</b><small>От тарифа зависит, что показывает трекер.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
     h += helpBox('w');
     h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div><div class="theme"><h3>Результат модуля</h3><p>' + M[2] + '</p></div></div>';
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
-      chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной', '', 'meet') +
+      (isRec() ? chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Запись встречи с Татьяной', 'Доступна через сутки после эфира', 'meet')
+        : chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной', '', 'meet')) +
+      (isVip() ? chkRow('w-vip', 'weeks.' + cur + '.vip', w.vip, 'Индивидуальная сессия с Татьяной', 'В тарифе VIP 4 сессии за программу', 'star') : '') +
       chkRow('w-group', 'weeks.' + cur + '.group', w.group, 'Групповая терапия', '', 'group') +
       chkRow('w-chat', 'weeks.' + cur + '.chat', w.chat, 'Сообщение психотерапевту в чате', 'Личный психотерапевт отвечает с обратной связью', 'chat') +
       chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди', '', 'buddy') +
@@ -219,9 +254,9 @@
   }
   var lastDone = null;
   function updDone() {
-    var v = done(D().weeks[cur]);
-    setRing($('w-ring'), v, 14);
-    if (!VIEW && lastDone != null && lastDone < 14 && v >= 14) toast('Неделя ' + (cur + 1) + ' пройдена полностью ✦');
+    var v = done(D().weeks[cur], D()), mx = maxDone(D());
+    setRing($('w-ring'), v, mx);
+    if (!VIEW && lastDone != null && lastDone < mx && v >= mx) toast('Неделя ' + (cur + 1) + ' пройдена полностью ✦');
     lastDone = v;
     if (!VIEW) updHead();
   }
@@ -300,9 +335,15 @@
       '<div><span>Посещают встречи</span><strong>' + (meetPct == null ? '-' : Math.round(meetPct * 100) + '%') + '</strong></div>' +
       '<div><span>Ночей протокола в неделю</span><strong>' + (nightsAvg == null ? '-' : nightsAvg.toFixed(1) + ' из 7') + '</strong></div>' +
       '<div><span>Среднее состояние</span><strong>' + (stAvg == null ? '-' : stAvg.toFixed(1) + ' из 5') + '</strong></div></div>';
+    // Сколько людей на каждом тарифе
+    var noPlan = P.filter(function (p) { return !planId(p.s); }).length;
+    h += '<div class="plan-count">' + PLANS.map(function (pl) {
+      var n = P.filter(function (p) { return planId(p.s) === pl.id; }).length;
+      return '<span class="pill plan-' + pl.id + '">' + pl.name + ': ' + n + '</span>';
+    }).join('') + (noPlan ? '<span class="pill mute">не выбрали: ' + noPlan + '</span>' : '') + '</div>';
 
     h += '<h3>Каждый участник</h3><div class="tablewrap"><table><thead><tr>' +
-      '<th>Участник</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Практики</th><th>Доход в месяц: старт → итог</th><th>Состояние</th><th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
+      '<th>Участник</th><th>Тариф</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Практики</th><th>Доход в месяц: старт → итог</th><th>Состояние</th><th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
       '</tr></thead><tbody>' + all.map(function (x) {
         var p = x.p, st = x.st, c = p.s.start.cur;
         var mini = '<span class="mini" aria-hidden="true">' + p.s.weeks.map(function (w) { return '<i class="' + (w.meet ? 'y' : '') + '"></i>'; }).join('') + '</span> ';
@@ -312,6 +353,7 @@
         var sub = [tgNick(p.s.start.tg), p.email, p.id === me.id ? 'это вы' : ''].filter(Boolean).join(' · ');
         return '<tr class="p" tabindex="0" data-pid="' + esc(p.id) + '">' +
           '<td class="nm"><b>' + esc(pname(p)) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</td>' +
+          '<td>' + planPill(p.s) + '</td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
           '<td>' + mini + st.meets + '</td><td>' + st.groups + '</td><td>' + st.nights + '</td><td>' + st.practices + '</td>' +
           '<td>' + m2 + '</td><td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td><td>' + res + '</td>' +
@@ -488,6 +530,12 @@
     var title = (p && p.title) || (def ? def[2] : 'Практика ' + num);
     var isDone = !!S.weeks[cur].practices[j];
     var editing = admin && pdraft && pdraft.week === wk && pdraft.num === num;
+    // «Точка сборки» (модуль 5, практика 1) — личная работа с Татьяной, только в «Глубине» и VIP
+    if (wk === 5 && num === 1 && !admin && !hasPersonal()) {
+      return '<article class="pc locked" id="pc-' + key + '"><span class="pc-num" aria-hidden="true">' + nn + '</span><div class="pc-body">' +
+        '<p class="pc-eyebrow">Практика ' + nn + '</p><h3 class="pc-title">' + esc(title) + '</h3>' +
+        '<p class="pc-lock"><span class="ci mute">' + svg('star') + '</span>Личная работа с Татьяной входит в тарифы «Глубина» и VIP</p></div></article>';
+    }
     if (!visible) {
       return '<article class="pc locked" id="pc-' + key + '"><span class="pc-num" aria-hidden="true">' + nn + '</span><div class="pc-body">' +
         '<p class="pc-eyebrow">Практика ' + nn + '</p><h3 class="pc-title">' + esc(title) + '</h3>' +
@@ -658,6 +706,8 @@
   function helpBox(key) {
     if (VIEW) return '';
     var isPractice = key.charAt(0) === 'p', h = '';
+    // В тарифе «Записи» куратора нет: вопросы задают в общем чате потока
+    if (isRec()) return isPractice ? '' : '<div class="helpbox"><span class="ci">' + svg('chat') + '</span><div class="hb-text"><b>Есть вопрос?</b><small>Задайте его в общем чате потока. Личный куратор входит в тарифы «Поток», «Глубина» и VIP.</small></div></div>';
     var mine = activeHelp().filter(function (r) { return !isPractice || (r.week === cur + 1 && r.practice === Number(key.slice(1)) + 1); });
     var formOpen = helpUI && helpUI.key === key;
     if (!formOpen) {
@@ -751,7 +801,7 @@
         ? '<input type="text" id="hc-' + esc(x.h.id) + '" placeholder="Имя куратора" aria-label="Имя куратора"><button class="btn warm small" type="button" data-hpass="' + esc(x.h.id) + '">Передать куратору</button><button class="ghost small" type="button" data-hdone="' + esc(x.h.id) + '">Решено</button>'
         : state === 'passed' ? '<button class="ghost small" type="button" data-hdone="' + esc(x.h.id) + '">Решено</button>'
         : '<button class="ghost small" type="button" data-hreopen="' + esc(x.h.id) + '">Вернуть в работу</button>';
-      return '<article class="hreq st-' + state + '"><div class="hr-top"><b>' + who + '</b>' + pill + '</div>' +
+      return '<article class="hreq st-' + state + '"><div class="hr-top"><b>' + who + '</b>' + planPill(x.p.s) + pill + '</div>' +
         '<p class="hr-ctx">' + esc(helpCtx(x.h)) + ' · ' + fmtWhen(x.h.at) + '</p>' +
         (x.h.text ? '<p class="hr-text">' + esc(x.h.text) + '</p>' : '') +
         (contacts ? '<p class="hr-contact">' + contacts + '</p>' : '') +
@@ -908,6 +958,13 @@
       var hs = $('help'); if (hs) hs.scrollIntoView({ block: 'start', behavior: 'smooth' });
       return;
     }
+    if (t.dataset.plan) {
+      if (VIEW) return;
+      S.start.plan = t.dataset.plan; touch(); renderStart(); updHead();
+      toast('Тариф: ' + plan().name);
+      return;
+    }
+    if (t.dataset.goplan) { show('start'); var pb = $('plan-block'); if (pb) pb.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
     if (t.dataset.pcard) { openCards[t.dataset.pcard] = !openCards[t.dataset.pcard]; return renderPractice(); }
     if (t.dataset.gopr != null) { e.preventDefault(); return goPractice(Number(t.dataset.gopr)); }
     if (t.dataset.pdone != null) {
@@ -961,7 +1018,7 @@
     var p = e.target.getAttribute && e.target.getAttribute('data-bind'); if (!p) return;
     set(p, e.target.type === 'checkbox' ? (e.target.checked ? 1 : 0) : e.target.value);
     touch();
-    if (/^weeks\.\d+\.(meet|group|chat|buddy|nights|practices)/.test(p)) updDone();
+    if (/^weeks\.\d+\.(meet|group|chat|buddy|nights|practices|vip)/.test(p)) updDone();
     if (p === 'start.name' || p === 'start.date') updHead();
     if (p === 'end.income') updIncome();
   });
@@ -994,6 +1051,7 @@
     $('a-signup').setAttribute('aria-selected', String(m === 'signup'));
     $('a-name-wrap').hidden = m !== 'signup';
     $('a-tg-wrap').hidden = m !== 'signup';
+    $('a-plan-wrap').hidden = m !== 'signup';
     $('a-pass-wrap').hidden = m === 'forgot';
     $('a-forgot').hidden = m !== 'login';
     $('a-pass').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
@@ -1021,11 +1079,12 @@
     if (!email) return authMsg('Введите email.', 'err');
     if (mode !== 'forgot' && pass.length < 6) return authMsg('Пароль должен быть не короче 6 символов.', 'err');
     if (mode === 'signup' && !$('a-name').value.trim()) return authMsg('Напишите, как вас зовут.', 'err');
+    if (mode === 'signup' && !$('a-plan').value) return authMsg('Выберите ваш тариф.', 'err');
     if (mode === 'signup' && !tgNick($('a-tg').value)) return authMsg('Напишите ник в Telegram, например @anna_ivanova. Его можно посмотреть в Telegram: Настройки, затем Имя пользователя.', 'err');
     btn.disabled = true; authMsg('Секунду…');
     var p;
     if (mode === 'login') p = sb.auth.signInWithPassword({ email: email, password: pass });
-    else if (mode === 'signup') { pendingName = $('a-name').value.trim(); pendingTg = tgNick($('a-tg').value); p = sb.auth.signUp({ email: email, password: pass }); }
+    else if (mode === 'signup') { pendingName = $('a-name').value.trim(); pendingTg = tgNick($('a-tg').value); pendingPlan = $('a-plan').value; p = sb.auth.signUp({ email: email, password: pass }); }
     else p = sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
     p.then(function (r) {
       btn.disabled = false;
@@ -1060,6 +1119,7 @@
       S = isNew ? blank() : norm(row.data);
       if (isNew && pendingName) S.start.name = pendingName;
       if (isNew && pendingTg) S.start.tg = pendingTg;
+      if (isNew && pendingPlan) S.start.plan = pendingPlan;
       admin = r[1].data === true;
       var pt = $('t-people');
       if (admin && !pt) {

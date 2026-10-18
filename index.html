@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="design.css">
 <link rel="stylesheet" href="practice.css">
 <link rel="stylesheet" href="help.css">
+<link rel="stylesheet" href="plans.css">
 <style>
   :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   [hidden] { display: none !important; }
@@ -58,6 +59,7 @@
         </div>
         <form id="auth-form" class="auth" novalidate>
           <label class="f" for="a-name" id="a-name-wrap" hidden>Как вас зовут<input type="text" id="a-name" autocomplete="name" placeholder="Имя и фамилия"></label>
+          <label class="f" for="a-plan" id="a-plan-wrap" hidden>Ваш тариф<select id="a-plan"><option value="">Выберите тариф</option><option value="rec">Записи</option><option value="flow">Поток</option><option value="deep">Глубина</option><option value="vip">VIP</option></select></label>
           <label class="f" for="a-tg" id="a-tg-wrap" hidden>Ваш ник в Telegram<input type="text" id="a-tg" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="@nickname"><small class="hint">Через него куратор свяжется с вами, если понадобится помощь</small></label>
           <label class="f" for="a-email">Email<input type="email" id="a-email" autocomplete="email" inputmode="email" required></label>
           <label class="f" for="a-pass" id="a-pass-wrap">Пароль<input type="password" id="a-pass" autocomplete="current-password" minlength="6" required></label>

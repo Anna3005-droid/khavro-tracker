@@ -74,6 +74,7 @@ module.exports = async (req, res) => {
   if (Date.now() - new Date(h.at).getTime() > 15 * 60 * 1000) return res.status(409).json({ error: 'Запрос слишком старый' });
 
   const name = (row.data.start && row.data.start.name) || '';
+  const planName = ({ rec: 'Записи', flow: 'Поток', deep: 'Глубина', vip: 'VIP' })[row.data.start && row.data.start.plan] || '';
   const rawNick = String(h.contact || (row.data.start && row.data.start.tg) || '').trim().replace(/^https?:\/\//i, '').replace(/^(t\.me|telegram\.me)\//i, '').replace(/^@/, '');
   const nick = /^[A-Za-z0-9_]{4,32}$/.test(rawNick) ? rawNick : '';
   let ctx = 'Неделя ' + esc(h.week);
@@ -87,6 +88,7 @@ module.exports = async (req, res) => {
     '🔔 <b>Нужна помощь куратора</b>',
     '',
     '<b>' + esc(name || 'Участник') + '</b>' + (user.email ? ' · ' + esc(user.email) : ''),
+    planName ? 'Тариф: ' + esc(planName) : '',
     ctx,
     h.text ? '\n💬 ' + esc(h.text) : '',
     nick ? '✈️ Telegram: <a href="https://t.me/' + nick + '">@' + nick + '</a>' : (h.contact ? '📞 Связь: ' + esc(h.contact) : ''),
