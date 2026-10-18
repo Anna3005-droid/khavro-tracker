@@ -271,7 +271,7 @@
   function renderPeople() {
     var h = '', P = people.slice().sort(function (a, b) { return pname(a).localeCompare(pname(b), 'ru'); });
     h += '<h2>Участники программы</h2><p class="note">Здесь видно всё, что отмечают участники. Список обновляется каждую минуту. Нажмите на строку, чтобы открыть трекер человека.</p>';
-    h += '<p style="margin:0 0 20px"><button class="ghost gold" type="button" id="refresh">Обновить сейчас</button></p>';
+    h += '<p class="actions" style="margin:0 0 20px"><button class="ghost gold" type="button" id="refresh">Обновить сейчас</button><button class="ghost" type="button" id="tg-test">Проверить Telegram</button></p>';
     h += helpSection();
     if (!P.length) {
       h += '<div class="empty"><b>Пока никто не заполнил трекер.</b><br>Отправьте участникам ссылку на этот сайт. Каждый регистрируется со своим email, и как только человек отметит первый пункт, он появится здесь.</div>';
@@ -668,10 +668,40 @@
     var text = (helpUI.text || '').trim(), contact = (helpUI.contact || '').trim();
     if (!S.help) S.help = [];
     S.help.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), week: cur + 1, practice: helpUI.practice, text: text, contact: contact });
+    var id = S.help[S.help.length - 1].id;
     helpUI = null;
-    clearTimeout(saveTimer); flush();
-    toast('Запрос отправлен куратору ✓');
+    clearTimeout(saveTimer);
+    toast('Отправляем…');
     render();
+    // Сначала сохраняем трекер, потом просим сервер прислать уведомление в Telegram
+    sb.from('trackers').upsert({ user_id: me.id, data: S }).then(function (r) {
+      if (r.error) { syncState('err', 'Не удалось отправить запрос. Проверьте интернет и попробуйте ещё раз'); return; }
+      syncState('on', savedLabel());
+      toast('Запрос отправлен куратору ✓');
+      notifyTelegram({ id: id });
+    });
+  }
+  function notifyTelegram(payload) {
+    return sb.auth.getSession().then(function (s) {
+      var token = s.data.session && s.data.session.access_token;
+      if (!token) return null;
+      return fetch('api/notify-help', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(payload)
+      }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, body: j }; }); });
+    }).catch(function () { return null; });
+  }
+  function testTelegram(btn) {
+    btn.disabled = true; btn.textContent = 'Отправляем…';
+    notifyTelegram({ test: true }).then(function (r) {
+      btn.disabled = false; btn.textContent = 'Проверить Telegram';
+      if (!r) return toast('Не удалось связаться с сервером', 'err');
+      if (r.status === 200) return toast('Готово: проверьте Telegram ✓');
+      if (r.status === 503) return toast('Telegram ещё не подключён в Vercel', 'err');
+      var e = r.body && r.body.sent && r.body.sent.filter(function (x) { return !x.ok; })[0];
+      toast('Telegram не принял сообщение' + (e && e.error ? ': ' + e.error : ''), 'err');
+    });
   }
 
   // Администратор: список запросов
@@ -824,6 +854,7 @@
     var t = e.target.closest('button'); if (!t || !S) return;
     if (t.id === 'back') return show('people');
     if (t.id === 'refresh') { t.textContent = 'Обновляем…'; return loadPeople(); }
+    if (t.id === 'tg-test') return testTelegram(t);
     if (t.id === 'logout') { sb.auth.signOut(); return; }
     if (t.closest('#tabs') && t.dataset.tab) return show(t.dataset.tab);
     if (t.classList.contains('pchip')) {
