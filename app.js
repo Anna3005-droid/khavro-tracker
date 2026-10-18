@@ -642,23 +642,31 @@
   function activeHelp() { return (S.help || []).filter(function (h) { return !h.cancelled; }); }
 
   // Блок для участника: кнопка, форма и статус отправленного запроса
+  // Срок ответа куратора, который видят участники
+  var HELP_RESPONSE = 'в течение 24 часов';
   function helpBox(key) {
     if (VIEW) return '';
-    var isPractice = key.charAt(0) === 'p', mine = activeHelp(), h = '';
+    var isPractice = key.charAt(0) === 'p', h = '';
+    var mine = activeHelp().filter(function (r) { return !isPractice || (r.week === cur + 1 && r.practice === Number(key.slice(1)) + 1); });
     var formOpen = helpUI && helpUI.key === key;
     if (!formOpen) {
-      if (isPractice) return '<button class="ghost help-ghost" type="button" data-help="' + key + '">' + svg('help') + 'Нужна помощь с этой практикой</button>';
-      h += '<div class="helpbox"><span class="ci warm">' + svg('help') + '</span><div class="hb-text"><b>Нужна помощь куратора?</b><small>Если застряли, стало тяжело или непонятна практика, куратор свяжется с вами.</small></div>' +
-        '<button class="btn warm" type="button" data-help="' + key + '">Позвать куратора</button></div>';
+      if (isPractice) {
+        if (!mine.length) h += '<button class="ghost help-ghost" type="button" data-help="' + key + '">' + svg('chat') + 'Написать куратору об этой практике</button>';
+      } else {
+        h += '<div class="helpbox"><span class="ci">' + svg('chat') + '</span><div class="hb-text"><b>Нужна помощь куратора?</b><small>Если застряли, стало тяжело или непонятна практика. Куратор ответит ' + HELP_RESPONSE + '.</small></div>' +
+          '<button class="btn" type="button" data-help="' + key + '">Написать куратору</button></div>';
+      }
     } else {
-      h += '<div class="helpform"><p class="hf-title">' + svg('help') + (isPractice ? 'Помощь с практикой' : 'Позвать куратора') + '</p>' +
+      h += '<div class="helpform"><p class="hf-title">' + svg('chat') + (isPractice ? 'Написать куратору об этой практике' : 'Написать куратору') + '</p>' +
         '<label class="f" for="help-text">Что случилось? Можно коротко<textarea id="help-text" data-hdraft="text" placeholder="Например: не получается выполнить практику, поднялось много эмоций">' + esc(helpUI.text) + '</textarea></label>' +
         '<label class="f" for="help-contact">Как с вами быстрее связаться, если нужно<input type="text" id="help-contact" data-hdraft="contact" value="' + esc(helpUI.contact) + '" placeholder="Телефон или Telegram"></label>' +
-        '<div class="actions"><button class="btn warm" type="button" data-hsend="1">Отправить куратору</button><button class="ghost" type="button" data-hclose="1">Отмена</button></div></div>';
+        '<p class="scale" style="margin:0">Куратор ответит ' + HELP_RESPONSE + '.</p>' +
+        '<div class="actions"><button class="btn" type="button" data-hsend="1">Отправить</button><button class="ghost" type="button" data-hclose="1">Отмена</button></div></div>';
     }
-    if (!isPractice && mine.length) {
+    if (mine.length) {
       h += '<div class="hsent">' + mine.map(function (r) {
-        return '<div class="hs-row"><span><b>Запрос отправлен</b> ' + fmtWhen(r.at) + ' · ' + esc(helpCtx(r)) + '<small>Куратор свяжется с вами.' + (r.text ? ' Ваше сообщение: «' + esc(r.text) + '»' : '') + '</small></span>' +
+        return '<div class="hs-row"><span class="ci">' + svg('chat') + '</span><span class="hs-text"><b>Запрос отправлен.</b> Куратор свяжется с вами ' + HELP_RESPONSE + '.' +
+          '<small>' + fmtWhen(r.at) + ' · ' + esc(helpCtx(r)) + (r.text ? ' · «' + esc(r.text) + '»' : '') + '</small></span>' +
           '<button class="ghost small" type="button" data-hcancel="' + esc(r.id) + '">Отменить</button></div>';
       }).join('') + '</div>';
     }
@@ -677,7 +685,7 @@
     sb.from('trackers').upsert({ user_id: me.id, data: S }).then(function (r) {
       if (r.error) { syncState('err', 'Не удалось отправить запрос. Проверьте интернет и попробуйте ещё раз'); return; }
       syncState('on', savedLabel());
-      toast('Запрос отправлен куратору ✓');
+      toast('Запрос отправлен. Куратор свяжется с вами ' + HELP_RESPONSE);
       notifyTelegram({ id: id });
     });
   }
