@@ -200,14 +200,20 @@
     $('start').innerHTML = h;
   }
   // Выбор тарифа на вкладке «Старт»: четыре карточки, у выбранной виден состав
+  // Тариф выбирают один раз, при регистрации. Потом его меняет только администратор:
+  // в своём трекере или в трекере участника (через функцию set_participant_plan в базе).
   function planBlock() {
-    var cur0 = planId(), h = '<div class="block" id="plan-block"><h3>Ваш тариф</h3>';
-    if (!cur0 && !VIEW) h += '<p class="scale" style="margin:0 0 12px">Выберите тариф, который вы купили. От него зависит, что показывает трекер.</p>';
+    var cur0 = planId(), h = '<div class="block" id="plan-block"><h3>' + (VIEW ? 'Тариф участника' : 'Ваш тариф') + '</h3>';
+    var canChange = VIEW ? admin : (admin || !cur0);
+    var attr = VIEW ? 'data-setplan' : 'data-plan';
+    if (!cur0 && !VIEW) h += '<p class="scale" style="margin:0 0 12px">Выберите тариф, который вы купили. Поменять его потом сможет только администратор.</p>';
+    if (VIEW && admin) h += '<p class="scale" style="margin:0 0 12px">Нажмите на другой тариф, чтобы поменять его участнику.</p>';
     h += '<div class="plans">' + PLANS.map(function (p) {
       var on = p.id === cur0;
-      return '<button class="plan' + (on ? ' on' : '') + '" type="button" data-plan="' + p.id + '" aria-pressed="' + on + '"' + dis() + '>' +
+      return '<button class="plan' + (on ? ' on' : '') + '" type="button" ' + attr + '="' + p.id + '" aria-pressed="' + on + '"' + (canChange ? '' : ' disabled') + '>' +
         '<b>' + p.name + '</b>' + (p.main ? '<small>основной</small>' : '') + '</button>';
     }).join('') + '</div>';
+    if (cur0 && !canChange) h += '<p class="scale" style="margin:10px 0 0">Тариф меняет администратор. Если выбрали не тот, напишите в чат программы.</p>';
     var sel = plan();
     if (sel) h += '<ul class="plan-inc">' + sel.inc.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
     return h + '</div>';
@@ -958,8 +964,24 @@
       var hs = $('help'); if (hs) hs.scrollIntoView({ block: 'start', behavior: 'smooth' });
       return;
     }
+    if (t.dataset.setplan) {
+      if (!VIEW || !admin) return;
+      var vid = VIEW.id, np = t.dataset.setplan;
+      t.disabled = true;
+      sb.rpc('set_participant_plan', { target: vid, p: np }).then(function (r) {
+        if (r.error) {
+          t.disabled = false;
+          return toast(/set_participant_plan/.test(r.error.message || '') ? 'Нужно один раз выполнить код admin-tools.sql в Supabase' : 'Не удалось поменять тариф: ' + r.error.message, 'err');
+        }
+        VIEW.s.start.plan = np;
+        people.forEach(function (p) { if (p.id === vid) p.s.start.plan = np; });
+        render();
+        toast('Тариф участника: ' + plan(VIEW.s).name);
+      });
+      return;
+    }
     if (t.dataset.plan) {
-      if (VIEW) return;
+      if (VIEW || (planId() && !admin)) return;
       S.start.plan = t.dataset.plan; touch(); renderStart(); updHead();
       toast('Тариф: ' + plan().name);
       return;
