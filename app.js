@@ -359,7 +359,10 @@
         var sub = [tgNick(p.s.start.tg), p.email, p.id === me.id ? 'это вы' : ''].filter(Boolean).join(' · ');
         return '<tr class="p" tabindex="0" data-pid="' + esc(p.id) + '">' +
           '<td class="nm"><b>' + esc(pname(p)) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</td>' +
-          '<td>' + planPill(p.s) + '</td>' +
+          '<td><select class="plan-select plan-' + (planId(p.s) || 'none') + '" data-rowplan="' + esc(p.id) + '" aria-label="Тариф участника">' +
+            (planId(p.s) ? '' : '<option value="">не выбран</option>') +
+            PLANS.map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === planId(p.s) ? ' selected' : '') + '>' + pl.name + '</option>'; }).join('') +
+          '</select></td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
           '<td>' + mini + st.meets + '</td><td>' + st.groups + '</td><td>' + st.nights + '</td><td>' + st.practices + '</td>' +
           '<td>' + m2 + '</td><td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td><td>' + res + '</td>' +
@@ -932,6 +935,7 @@
   document.addEventListener('click', function (e) {
     var dp = e.target.closest('[data-delp]');
     if (dp) { e.stopPropagation(); return deleteParticipant(dp); }
+    if (e.target.closest('select')) return;
     var row = e.target.closest('tr.p');
     if (row) return openPerson(row.dataset.pid);
     var t = e.target.closest('button'); if (!t || !S) return;
@@ -1028,7 +1032,7 @@
     }
   });
   document.addEventListener('keydown', function (e) {
-    var row = e.target.closest && !e.target.closest('button') && e.target.closest('tr.p');
+    var row = e.target.closest && !e.target.closest('button, select') && e.target.closest('tr.p');
     if (row &&(e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPerson(row.dataset.pid); }
   });
   document.addEventListener('input', function (e) {
@@ -1047,6 +1051,24 @@
   document.addEventListener('change', function (e) {
     if (e.target.id === 'pe-file') { uploadFiles(e.target.files, false); return; }
     if (e.target.id === 'pe-mfile') { uploadFiles(e.target.files, true); return; }
+    // Смена тарифа участнику прямо из таблицы «Участники»
+    if (e.target.dataset && e.target.dataset.rowplan) {
+      var sel = e.target, uid = sel.dataset.rowplan, np = sel.value;
+      if (!np || !admin) return;
+      sel.disabled = true;
+      sb.rpc('set_participant_plan', { target: uid, p: np }).then(function (r) {
+        sel.disabled = false;
+        if (r.error) {
+          renderPeople();
+          return toast(/set_participant_plan/.test(r.error.message || '') ? 'Нужно один раз выполнить код admin-tools.sql в Supabase' : 'Не удалось поменять тариф: ' + r.error.message, 'err');
+        }
+        var who = '';
+        people.forEach(function (p) { if (p.id === uid) { p.s.start.plan = np; who = pname(p); } });
+        renderPeople();
+        toast(who + ': тариф ' + PLANS.filter(function (pl) { return pl.id === np; })[0].name);
+      });
+      return;
+    }
     if (VIEW || !S) return;
     if (e.target.id === 's-cur') { set('start.cur', e.target.value); touch(); }
   });
