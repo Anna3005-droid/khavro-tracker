@@ -282,7 +282,7 @@
   function renderPeople() {
     var h = '', P = people.slice().sort(function (a, b) { return pname(a).localeCompare(pname(b), 'ru'); });
     h += '<h2>Участники программы</h2><p class="note">Здесь видно всё, что отмечают участники. Список обновляется каждую минуту. Нажмите на строку, чтобы открыть трекер человека.</p>';
-    h += '<p class="actions" style="margin:0 0 20px"><button class="ghost gold" type="button" id="refresh">Обновить сейчас</button><button class="ghost" type="button" id="tg-test">Проверить Telegram</button></p>';
+    h += '<p class="actions" style="margin:0 0 20px"><button class="ghost gold" type="button" id="refresh">Обновить сейчас</button></p>';
     h += helpSection();
     if (!P.length) {
       h += '<div class="empty"><b>Пока никто не заполнил трекер.</b><br>Отправьте участникам ссылку на этот сайт. Каждый регистрируется со своим email, и как только человек отметит первый пункт, он появится здесь.</div>';

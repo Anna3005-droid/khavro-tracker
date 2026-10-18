@@ -84,3 +84,6 @@
 
 /* Подсказка под полем ника при регистрации */
 label.f .hint { font-size: 12px; color: var(--muted); }
+
+/* Ссылки на ник в Telegram в золоте трекера */
+.hr-contact a, .prose a, td a { color: var(--gold); text-underline-offset: 3px; }
