@@ -247,6 +247,7 @@
     var rng = weekRange(cur);
     h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
     if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Выберите ваш тариф</b><small>От тарифа зависит, что показывает трекер.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
+    h += meetingBlock();
     h += helpBox('w');
     h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div><div class="theme"><h3>Результат модуля</h3><p>' + M[2] + '</p></div></div>';
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
@@ -438,6 +439,55 @@
     $('viewbar').innerHTML = VIEW ? '<div class="banner"><p>Вы смотрите трекер участника <b>' + esc(pname(VIEW)) + '</b>. Здесь ничего нельзя изменить.</p>' +
       '<span style="display:flex;gap:8px;flex-wrap:wrap"><button class="ghost gold" type="button" id="back">Вернуться к участникам</button>' +
       (VIEW.id !== me.id ? '<button class="ghost danger" type="button" data-delp="' + esc(VIEW.id) + '">Удалить участника</button>' : '') + '</span></div>' : '';
+  }
+
+  // ---------- Встреча недели: эфир и запись ----------
+  // Ссылки вставляет администратор. Эфир видят «Поток», «Глубина» и VIP, запись видят все тарифы.
+  var meetings = {}, meetingsLoaded = false, meetingsMissing = false, mdraft = null;
+  function loadMeetings() {
+    return sb.from('meetings').select('*').then(function (r) {
+      meetings = {}; meetingsLoaded = true; meetingsMissing = !!r.error;
+      (r.data || []).forEach(function (m) { meetings[m.week] = m; });
+      if (tab === 'weeks') renderWeeks();
+    });
+  }
+  // Дата встречи: первый четверг недели программы
+  function meetingDate(i) {
+    var d = new Date((D().start.date || DEFAULT_START) + 'T00:00:00');
+    if (isNaN(d.getTime())) return null;
+    d = new Date(d.getTime() + i * 7 * 864e5);
+    return new Date(d.getTime() + ((4 - d.getDay() + 7) % 7) * 864e5);
+  }
+  function meetingBlock() {
+    var m = meetings[cur + 1] || {}, live = safeLink(m.live_url), rec = safeLink(m.record_url);
+    var day = meetingDate(cur), when = day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+    var h = '<div class="meet"><span class="ci">' + svg('meet') + '</span><div class="hb-text"><b>' + (isRec() ? 'Запись встречи с Татьяной' : 'Встреча с Татьяной') + '</b>' +
+      '<small>' + (when ? when.charAt(0).toUpperCase() + when.slice(1) : '') + '</small></div><div class="meet-acts">';
+    if (!isRec() && live) h += '<a class="btnlink" href="' + esc(live) + '" target="_blank" rel="noopener">Перейти на эфир</a>';
+    if (rec) h += '<a class="btnlink ghostlink" href="' + esc(rec) + '" target="_blank" rel="noopener">Смотреть запись</a>';
+    if (!rec && (isRec() || !live)) h += '<span class="meet-wait">' + (isRec() ? 'Запись появится через сутки после эфира' : 'Ссылка появится перед встречей') + '</span>';
+    h += '</div>';
+    if (admin && !VIEW) {
+      if (!mdraft || mdraft.week !== cur + 1) mdraft = { week: cur + 1, live: m.live_url || '', rec: m.record_url || '' };
+      h += '<div class="meet-edit">' +
+        (meetingsMissing ? '<p class="msg err">Чтобы сохранять ссылки, выполните один раз код meetings.sql в Supabase.</p>' : '') +
+        '<label class="f" for="me-live">Ссылка на эфир (видят «Поток», «Глубина», VIP)<input type="text" id="me-live" data-mdraft="live" value="' + esc(mdraft.live) + '" placeholder="https://"></label>' +
+        '<label class="f" for="me-rec">Ссылка на запись (видят все)<input type="text" id="me-rec" data-mdraft="rec" value="' + esc(mdraft.rec) + '" placeholder="https://"></label>' +
+        '<div class="actions"><button class="ghost gold small" type="button" id="me-save">Сохранить ссылки</button></div></div>';
+    }
+    return h + '</div>';
+  }
+  function saveMeeting(btn) {
+    var d = mdraft; if (!d) return;
+    var live = d.live.trim(), rec = d.rec.trim();
+    if ((live && !safeLink(live)) || (rec && !safeLink(rec))) return toast('Ссылка должна начинаться с https://', 'err');
+    btn.disabled = true;
+    sb.from('meetings').upsert({ week: d.week, live_url: live, record_url: rec, updated_at: new Date().toISOString() }).select().single().then(function (r) {
+      btn.disabled = false;
+      if (r.error) return toast(/meetings/.test(r.error.message || '') ? 'Нужно один раз выполнить код meetings.sql в Supabase' : 'Не удалось сохранить: ' + r.error.message, 'err');
+      meetings[d.week] = r.data; meetingsMissing = false; mdraft = null; renderWeeks();
+      toast('Ссылки недели ' + d.week + ' сохранены');
+    });
   }
 
   // ---------- Практики ----------
@@ -1035,6 +1085,7 @@
       renderPractice(); return peMsg('Ссылка добавлена. Нажмите «Сохранить».');
     }
     if (t.dataset.rmmedia != null) { pdraft.media.splice(Number(t.dataset.rmmedia), 1); pdraft.dirty = true; renderPractice(); return peMsg('Убрано. Нажмите «Сохранить».'); }
+    if (t.id === 'me-save') return saveMeeting(t);
     if (t.id === 'pe-save') return savePractice();
     if (t.id === 'pe-cancel') { pdraft = null; return renderPractice(); }
     if (t.dataset.pedit) {
@@ -1067,6 +1118,8 @@
   document.addEventListener('input', function (e) {
     var dr = e.target.getAttribute && e.target.getAttribute('data-draft');
     if (dr && pdraft) { pdraft[dr] = e.target.value; pdraft.dirty = true; return; }
+    var md = e.target.getAttribute && e.target.getAttribute('data-mdraft');
+    if (md && mdraft) { mdraft[md] = e.target.value; return; }
     var hd = e.target.getAttribute && e.target.getAttribute('data-hdraft');
     if (hd && helpUI) { helpUI[hd] = e.target.value; return; }
     if (VIEW || !S) return;
@@ -1202,7 +1255,7 @@
         $('tabs').insertBefore(b, $('tabs').firstChild);
       } else if (!admin && pt) pt.remove();
       cur = currentWeek(S);
-      pdraft = null; openCards = {}; loadPractices();
+      pdraft = null; openCards = {}; mdraft = null; loadPractices(); loadMeetings();
       screen('app');
       syncState('on', isNew ? (admin ? 'Готово' : 'Готово. Татьяна увидит ваши отметки') : savedLabel());
       if (isNew) flush();

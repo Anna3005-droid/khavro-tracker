@@ -25,3 +25,12 @@ select.plan-select.plan-deep { color: var(--gold); border-color: var(--line); }
 select.plan-select.plan-vip { color: #E8A3C9; }
 select.plan-select.plan-flow { color: #8FB3E8; }
 select.plan-select.plan-none { color: var(--warn); }
+
+/* Встреча недели: эфир и запись */
+.meet { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+.meet-acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.meet-acts .btnlink { margin: 0; }
+.btnlink.ghostlink { background: transparent; color: var(--gold); border: 1px solid var(--line); }
+.meet-wait { font-size: 13px; color: var(--muted); }
+.meet-edit { grid-column: 1 / -1; display: grid; gap: 10px; padding-top: 12px; border-top: 1px dashed var(--line); }
+@media (min-width: 641px) { .meet { grid-template-columns: auto minmax(0, 1fr) auto; } .meet-acts { grid-column: auto; } }
