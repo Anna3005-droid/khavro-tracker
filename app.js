@@ -802,7 +802,7 @@
       if (isPractice) {
         if (!mine.length) h += '<button class="ghost help-ghost" type="button" data-help="' + key + '">' + svg('chat') + 'Написать куратору об этой практике</button>';
       } else {
-        h += '<div class="helpbox"><span class="ci">' + svg('chat') + '</span><div class="hb-text"><b>Нужна помощь куратора?</b><small>Если застряли, стало тяжело или непонятна практика. Куратор ответит ' + HELP_RESPONSE + '.</small></div>' +
+        h += '<div class="helpbox"><span class="ci">' + svg('chat') + '</span><div class="hb-text"><b>Нужна помощь куратора?</b><small>Обычно вопросы удобно задавать в чате группы. Если нужен куратор лично, напишите здесь: он ответит ' + HELP_RESPONSE + '.</small></div>' +
           '<button class="btn" type="button" data-help="' + key + '">Написать куратору</button></div>';
       }
     } else {
