@@ -706,7 +706,7 @@
         var k = Math.min(1, 1600 / Math.max(img.width, img.height));
         if (k === 1 && file.size < 800000) { URL.revokeObjectURL(url); return resolve(file); }
         var c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-        var g = c.getContext('2d'); g.fillStyle = '#0C1330'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        var g = c.getContext('2d'); g.fillStyle = '#031426'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
         c.toBlob(function (b) { resolve(b || file); }, 'image/jpeg', 0.85);
       };

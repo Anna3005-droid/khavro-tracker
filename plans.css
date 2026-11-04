@@ -6,7 +6,7 @@
   transition: border-color .2s, background-color .2s;
 }
 .plan small { font-size: 11px; color: var(--gold); }
-.plan.on { border-color: var(--gold); background: rgba(201, 162, 75, 0.14); }
+.plan.on { border-color: var(--gold); background: rgba(26, 132, 255, 0.14); }
 .plan.on b { color: var(--gold); }
 .plan:disabled { cursor: default; }
 .plan-inc { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }

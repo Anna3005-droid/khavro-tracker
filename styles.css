@@ -1,16 +1,16 @@
 /* Layout: one framed sheet like the Instagram carousels (monogram top-left, label top-right), sticky tab bar. Participants: Старт, Недели, Итоги. Owner also gets Участники. Single-theme dark navy + gold, Татьяна's palette. */
 :root {
-  --bg: #0C1330;
-  --surface: #131B3D;
-  --surface2: #0A1027;
-  --ink: #F1ECE1;
-  --muted: #9CA5C4;
-  --gold: #C9A24B;
-  --on-gold: #1A1606;
+  --bg: #031426;
+  --surface: #0A2140;
+  --surface2: #020E1D;
+  --ink: #FFFFFF;
+  --muted: #8FA3C0;
+  --gold: #1A84FF;
+  --on-gold: #FFFFFF;
   --good: #7FC79A;
   --warn: #E0A458;
-  --line: rgba(201, 162, 75, 0.32);
-  --line-soft: rgba(241, 236, 225, 0.12);
+  --line: rgba(26, 132, 255, 0.32);
+  --line-soft: rgba(255, 255, 255, 0.12);
   --display: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
   --body: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: dark;
@@ -49,7 +49,7 @@ input[type=text], input[type=number], input[type=date], textarea, select {
 }
 input:disabled, textarea:disabled, select:disabled { opacity: .85; cursor: default; }
 textarea { resize: vertical; min-height: 84px; }
-input::placeholder, textarea::placeholder { color: rgba(156, 165, 196, .6); }
+input::placeholder, textarea::placeholder { color: rgba(143, 163, 192, .6); }
 .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 
 .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 18px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }

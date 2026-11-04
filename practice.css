@@ -7,19 +7,19 @@
 .mod-prog b { color: var(--ink); font-weight: 600; }
 .mod-prog span:first-child { flex: 0 0 auto; }
 .thin { flex: 1; max-width: 280px; height: 3px; background: var(--line-soft); border-radius: 999px; overflow: hidden; }
-.thin i { display: block; height: 100%; background: linear-gradient(90deg, #E2C277, var(--gold)); border-radius: 999px; transition: width .6s cubic-bezier(.2, .7, .2, 1); }
+.thin i { display: block; height: 100%; background: linear-gradient(90deg, #5AA8FF, var(--gold)); border-radius: 999px; transition: width .6s cubic-bezier(.2, .7, .2, 1); }
 
 .plist { display: grid; gap: 14px; }
 .pc {
   position: relative; overflow: hidden; min-width: 0;
   border: 1px solid var(--line-soft); border-radius: var(--radius);
-  background: linear-gradient(160deg, rgba(201, 162, 75, 0.06), transparent 40%), var(--surface);
+  background: linear-gradient(160deg, rgba(26, 132, 255, 0.06), transparent 40%), var(--surface);
   padding: 18px 18px 18px; transition: border-color .25s, box-shadow .25s;
 }
 .pc:hover { border-color: var(--line); }
 .pc.open { border-color: var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); }
-.pc.done { border-color: rgba(201, 162, 75, 0.55); }
-.pc.locked { background: rgba(19, 27, 61, 0.55); }
+.pc.done { border-color: rgba(26, 132, 255, 0.55); }
+.pc.locked { background: rgba(10, 33, 64, 0.55); }
 .pc.draft { border-style: dashed; }
 
 /* Крупный полупрозрачный номер в углу */
@@ -41,7 +41,7 @@
 .pc-sum { margin: 0; color: var(--muted); font-size: 14px; max-width: 60ch; }
 .pc-meta {
   justify-self: start; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px;
-  color: var(--gold); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; background: rgba(201, 162, 75, 0.06);
+  color: var(--gold); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; background: rgba(26, 132, 255, 0.06);
 }
 .pc-toggle { justify-self: start; background: none; border: 0; padding: 4px 0; margin-top: 2px; color: var(--gold); font: 500 14px var(--body); cursor: pointer; }
 .pc-toggle:hover { text-decoration: underline; text-underline-offset: 4px; }
@@ -64,7 +64,7 @@
 .mname { margin: 0; font-size: 13px; color: var(--muted); }
 .media audio, .media video { width: 100%; max-width: 100%; border-radius: 8px; }
 .mlink { justify-self: start; color: var(--gold); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 14px; }
-.mlink:hover { background: rgba(201, 162, 75, 0.08); }
+.mlink:hover { background: rgba(26, 132, 255, 0.08); }
 .pc-notes { margin-top: 6px; }
 .pc-notes textarea { min-height: 96px; }
 .pc-admin { margin-top: 6px; }
