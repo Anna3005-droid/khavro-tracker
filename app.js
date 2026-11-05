@@ -76,17 +76,28 @@
   }
   function set(path, val) { var p = path.split('.'), last = p.pop(), o = p.reduce(function (a, k) { return a[k]; }, S); o[last] = val; }
 
+  // Недели программы: неделя 1 идёт от дня старта (четверг первого занятия) до воскресенья,
+  // со второй недели обычные недели с понедельника по воскресенье.
+  function startDate(s) { var d = new Date(((s || D()).start.date || DEFAULT_START) + 'T00:00:00'); return isNaN(d.getTime()) ? null : d; }
+  function addDays(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
+  function firstLen(d) { return (8 - d.getDay()) % 7 || 7; }
+  function weekLen(i, s) { var d = startDate(s); return d && i === 0 ? firstLen(d) : 7; }
+  function weekStart(i, s) {
+    var d = startDate(s); if (!d) return null;
+    return i === 0 ? d : addDays(d, firstLen(d) + (i - 1) * 7);
+  }
+  function totalNights(s) { var t = 0; for (var i = 0; i < 8; i++) t += weekLen(i, s); return t; }
   function weekRange(i) {
-    var d = D().start.date ? new Date(D().start.date + 'T00:00:00') : null;
-    if (!d || isNaN(d.getTime())) return '';
-    var a = new Date(d.getTime() + i * 7 * 864e5), b = new Date(a.getTime() + 6 * 864e5);
+    var a = weekStart(i); if (!a) return '';
+    var b = addDays(a, weekLen(i) - 1);
     var f = function (x) { return x.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''); };
     return f(a) + ' - ' + f(b);
   }
   function currentWeek(s) {
-    var d = s.start.date ? new Date(s.start.date + 'T00:00:00') : null;
-    if (!d || isNaN(d.getTime())) return 0;
-    return Math.min(7, Math.max(0, Math.floor((Date.now() - d.getTime()) / (7 * 864e5))));
+    if (!startDate(s)) return 0;
+    var now = Date.now(), w = 0;
+    for (var i = 1; i < 8; i++) if (weekStart(i, s).getTime() <= now) w = i;
+    return w;
   }
   // Тарифы программы. От тарифа зависит, что показывает трекер:
   // «Записи» смотрят встречи в записи и задают вопросы в общем чате (без куратора),
@@ -119,12 +130,12 @@
   // Пункты недели, которые считаются в кольце прогресса, зависят от тарифа
   function maxDone(s, i) {
     return 1 + (feature('group', s) ? 1 : 0) + (feature('chat', s) ? 1 : 0) + (feature('buddy', s) ? 1 : 0) +
-      (isVip(s) ? 1 : 0) + practicesOpenTo(i, s) + 7;
+      (isVip(s) ? 1 : 0) + practicesOpenTo(i, s) + weekLen(i, s);
   }
   function done(w, s, i) {
     var pr = (w.practices || []).filter(function (v, j) { return v && practiceAccess(i + 1, j + 1, s) === 'ok'; }).length;
     return w.meet + (feature('group', s) ? w.group : 0) + (feature('chat', s) ? w.chat : 0) + (feature('buddy', s) ? w.buddy : 0) +
-      pr + sum(w.nights) + (isVip(s) ? (w.vip || 0) : 0);
+      pr + sum(w.nights.slice(0, weekLen(i, s))) + (isVip(s) ? (w.vip || 0) : 0);
   }
   function planPill(s) { var p = plan(s); return p ? '<span class="pill plan-' + p.id + '">' + p.name + '</span>' : '<span class="pill mute">тариф не выбран</span>'; }
 
@@ -139,7 +150,7 @@
       incPct: a != null && b != null && a > 0 ? Math.round((b - a) / a * 100) : null,
       meets: sum(W.map(function (w) { return w.meet; })),
       groups: sum(W.map(function (w) { return w.group; })),
-      nights: sum(W.map(function (w) { return sum(w.nights); })),
+      nights: sum(W.map(function (w, i) { return sum(w.nights.slice(0, weekLen(i, s))); })),
       practices: sum(W.map(function (w, i) { return (w.practices || []).filter(function (v, j) { return v && practiceAccess(i + 1, j + 1, s) === 'ok'; }).length; })),
       practicesMax: sum(W.map(function (w, i) { return practicesOpenTo(i, s); })),
       state: states.length ? sum(states) / states.length : null,
@@ -271,9 +282,9 @@
       if (p && p.is_open) return chkRow('w-p' + j, 'weeks.' + cur + '.practices.' + j, w.practices[j], title, esc(p.meta) + go, 'leaf');
       return '<div class="crow has-ico"><span class="ci mute">' + svg('lock') + '</span><span>' + title + '<small>Станет доступна после встречи с Татьяной</small></span><span class="pill mute">закрыта</span></div>';
     }).join('') + '</div></div>';
-    var d0 = new Date((D().start.date || DEFAULT_START) + 'T00:00:00');
-    h += '<div class="block"><h3>Протокол для подсознания во сне</h3><div class="nights">' + [0, 1, 2, 3, 4, 5, 6].map(function (n) {
-      var day = isNaN(d0.getTime()) ? null : new Date(d0.getTime() + (cur * 7 + n) * 864e5);
+    var ws0 = weekStart(cur), nn = [0, 1, 2, 3, 4, 5, 6].slice(0, weekLen(cur));
+    h += '<div class="block"><h3>Протокол для подсознания во сне</h3><div class="nights">' + nn.map(function (n) {
+      var day = ws0 ? addDays(ws0, n) : null;
       var wd = day ? day.toLocaleDateString('ru-RU', { weekday: 'short' }) : 'ночь';
       return '<label class="night" for="w-n' + n + '"><b>' + wd + '</b><input class="chk moon" type="checkbox" id="w-n' + n + '" data-bind="weeks.' + cur + '.nights.' + n + '"' + (w.nights[n] ? ' checked' : '') + dis() + ' aria-label="' + (day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Ночь ' + (n + 1)) + '">' + (day ? day.getDate() : n + 1) + '</label>';
     }).join('') + '</div><p class="scale">Отмечайте ночи, когда вы слушали протокол перед сном.</p></div>';
@@ -304,7 +315,7 @@
       '<div><span>' + (isRec(s) ? 'Записи встреч' : 'Встречи с Татьяной') + '</span><strong>' + st.meets + ' из 8</strong></div>' +
       (feature('group', s) ? '<div><span>Групповые терапии</span><strong>' + st.groups + ' из 8</strong></div>' : '') +
       '<div><span>Практики</span><strong>' + st.practices + ' из ' + st.practicesMax + '</strong></div>' +
-      '<div><span>Ночей с протоколом</span><strong>' + st.nights + ' из 56</strong></div></div>';
+      '<div><span>Ночей с протоколом</span><strong>' + st.nights + ' из ' + totalNights(s) + '</strong></div></div>';
     h += '<div class="income"><h3>Доход: старт и итог</h3>' +
       '<div class="row"><label class="f" for="e-income">Ваш доход в месяц в конце программы, ' + esc(s.start.cur) + '<input type="number" inputmode="numeric" id="e-income" data-bind="end.income" value="' + esc(s.end.income) + '" placeholder="0"' + dis() + '></label></div>' +
       '<div id="inc-cmp"></div></div>';
@@ -456,10 +467,9 @@
   }
   // Дата встречи: первый четверг недели программы
   function meetingDate(i) {
-    var d = new Date((D().start.date || DEFAULT_START) + 'T00:00:00');
-    if (isNaN(d.getTime())) return null;
-    d = new Date(d.getTime() + i * 7 * 864e5);
-    return new Date(d.getTime() + ((4 - d.getDay() + 7) % 7) * 864e5);
+    var d = weekStart(i);
+    if (!d) return null;
+    return addDays(d, (4 - d.getDay() + 7) % 7);
   }
   function meetingBlock() {
     var m = meetings[cur + 1] || {}, live = safeLink(m.live_url), rec = safeLink(m.record_url);
