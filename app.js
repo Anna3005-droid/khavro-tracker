@@ -23,7 +23,8 @@
     'Я не боюсь проявляться',
     'У меня сильная внутренняя опора и финансовая ёмкость'
   ];
-  var DEFAULT_START = '2026-11-01';
+  // Первое занятие в четверг 5 ноября: с него начинается неделя 1, недели идут с четверга по среду
+  var DEFAULT_START = '2026-11-05';
 
   var cfg = window.TRACKER_CONFIG || {};
   var sb = window.supabase && cfg.supabaseUrl && cfg.supabaseUrl.indexOf('YOUR-') < 0
@@ -58,6 +59,8 @@
   }
   function valid(o) { return o && o.weeks && o.weeks.length === 8 && o.start && o.end; }
   function norm(o) {
+    // Старая дата старта по умолчанию (воскресенье) переводится на четверг первого занятия
+    if (o.start.date === '2026-11-01') o.start.date = DEFAULT_START;
     if (o.start.name == null) o.start.name = '';
     if (o.start.tg == null) o.start.tg = '';
     if (o.start.plan == null) o.start.plan = '';
