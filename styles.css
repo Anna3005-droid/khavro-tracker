@@ -15,7 +15,7 @@
   --body: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: dark;
 }
-html { background: var(--bg); }
+html { background: var(--bg); zoom: 1.1; } /* весь сайт немного крупнее */
 body {
   background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55;
   padding-inline: 16px; padding-block: 16px 40px; margin: 0;
