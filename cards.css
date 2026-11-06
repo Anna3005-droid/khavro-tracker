@@ -1,33 +1,15 @@
-/* Вкладка «Карты»: колода вопросов к себе, карта переворачивается при вытягивании */
-.deck { display: grid; justify-items: center; gap: 16px; margin: 8px 0 30px; }
-.mcard {
-  position: relative; width: min(100%, 300px); aspect-ratio: 5 / 7; border-radius: 18px;
-  border: 1px solid var(--line); display: flex; flex-direction: column; justify-content: center; align-items: center;
-  text-align: center; padding: 26px 22px; overflow: hidden;
+/* Вкладка «Инструменты»: ссылки на сайты-тренажёры команды */
+.tools { display: grid; gap: 12px; margin-bottom: 26px; }
+.tool {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px 14px; align-items: start;
+  background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius, 12px);
+  padding: 16px; color: var(--ink); text-decoration: none; transition: border-color .25s, transform .2s, box-shadow .3s;
 }
-.mcard::before { content: ""; position: absolute; inset: 9px; border: 1px solid var(--line-soft); border-radius: 12px; pointer-events: none; }
-.mcard.back {
-  cursor: pointer; color: var(--ink); font: inherit; gap: 18px;
-  background:
-    radial-gradient(circle at 50% 38%, rgba(26, 132, 255, 0.35), transparent 55%),
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 12px),
-    var(--surface);
-  box-shadow: 0 18px 40px -18px rgba(26, 132, 255, 0.55);
-  transition: transform .2s, box-shadow .3s;
-}
-.mcard.back:hover { transform: translateY(-3px); box-shadow: 0 24px 50px -18px rgba(26, 132, 255, 0.75); }
-.mcard.back:active { transform: scale(.97); }
-.mc-mono { font-family: var(--display); font-size: 56px; letter-spacing: .12em; color: var(--gold); line-height: 1; }
-.mc-cta { font-size: 13px; color: var(--muted); max-width: 18ch; }
-.mcard.face { background: linear-gradient(170deg, var(--surface), var(--surface2)); gap: 18px; }
-.mc-theme { font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
-.mc-text { margin: 0; font-family: var(--display); font-size: clamp(22px, 6vw, 27px); line-height: 1.22; text-wrap: balance; }
-.mc-mark { position: absolute; bottom: 20px; left: 0; right: 0; font-family: var(--display); font-size: 13px; letter-spacing: .3em; color: var(--muted); }
-.deck-note { width: min(100%, 420px); }
-.deck-h { margin-top: 6px; }
-.deck-stage { width: min(100%, 300px); perspective: 900px; display: grid; justify-items: center; }
-.deck-stage .mcard { width: 100%; }
-@media (prefers-reduced-motion: no-preference) {
-  .deck-stage.flip .mcard { animation: cardFlip .6s cubic-bezier(.2, .7, .2, 1) both; }
-}
-@keyframes cardFlip { from { transform: rotateY(90deg) scale(.92); opacity: .4; } to { transform: none; opacity: 1; } }
+.tool:hover, .tool:focus-visible { border-color: var(--line); transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(26, 132, 255, 0.6); }
+.tool-body { display: grid; gap: 4px; min-width: 0; }
+.tool-body small { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.tool-body b { font-family: var(--display); font-weight: 500; font-size: 24px; line-height: 1.15; }
+.tool-body span { font-size: 14px; color: var(--muted); }
+.tool-go { grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: center; gap: 6px; color: var(--gold); font-weight: 500; font-size: 14px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; }
+.tool-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (min-width: 641px) { .tool { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; } .tool-go { grid-column: auto; } }
