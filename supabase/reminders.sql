@@ -47,12 +47,10 @@ begin
     raise exception 'forbidden';
   end if;
   chat := nullif((select value from private.settings where key = 'chat_id'), '');
-  -- Подписки участников, кроме тарифа «Записи» (у него эфиры в записи и нет куратора)
+  -- Подписки всех участников, включая тариф «Записи»
   subs := coalesce((
     select jsonb_agg(jsonb_build_object('endpoint', ps.endpoint, 'keys', jsonb_build_object('p256dh', ps.p256dh, 'auth', ps.auth)))
     from private.push_subs ps
-    left join public.trackers t on t.user_id = ps.user_id
-    where coalesce(t.data->'start'->>'plan', '') <> 'rec'
   ), '[]'::jsonb);
   if chat is null and (jsonb_array_length(subs) = 0 or nullif((select value from private.settings where key = 'vapid_private'), '') is null) then
     return jsonb_build_object('chat', null, 'items', res, 'subs', '[]'::jsonb);
@@ -165,6 +163,21 @@ language sql security definer set search_path = public, private as $$
 $$;
 revoke all on function public.delete_push_sub(text) from public;
 grant execute on function public.delete_push_sub(text) to authenticated;
+
+-- Тестовое уведомление администратору на его собственные устройства
+create or replace function public.push_test_bundle() returns jsonb
+language plpgsql security definer set search_path = public, private as $$
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  return jsonb_build_object(
+    'vapid_public', (select value from private.settings where key = 'vapid_public'),
+    'vapid_private', (select value from private.settings where key = 'vapid_private'),
+    'subs', coalesce((select jsonb_agg(jsonb_build_object('endpoint', endpoint, 'keys', jsonb_build_object('p256dh', p256dh, 'auth', auth)))
+                      from private.push_subs where user_id = auth.uid()), '[]'::jsonb));
+end;
+$$;
+revoke all on function public.push_test_bundle() from public;
+grant execute on function public.push_test_bundle() to authenticated;
 
 -- Сайт убирает подписки, которые телефон больше не принимает
 create or replace function public.drop_push_subs(k text, endpoints text[]) returns void

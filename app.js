@@ -636,7 +636,7 @@
     }).then(function () { pushState = 'off'; renderWeeks(); toast('Напоминания выключены'); });
   }
   function pushBlock() {
-    if (VIEW || (isRec() && !admin) || pushState === 'unknown') return '';
+    if (VIEW || pushState === 'unknown') return '';
     var h = '<div class="meet push"><span class="ci">' + svg('bell') + '</span><div class="hb-text"><b>Напоминания на телефон</b>';
     if (pushState === 'on') return h + '<small>Включены ✓ За сутки и за час до эфиров</small></div><div class="meet-acts"><button class="ghost small" type="button" id="push-off">Выключить</button></div></div>';
     if (pushState === 'off') return h + '<small>Пришлём уведомление за сутки и за час до урока и занятий с кураторами</small></div><div class="meet-acts"><button class="btn" type="button" id="push-on">Включить напоминания</button></div></div>';
@@ -1135,6 +1135,7 @@
     if (remSt.missing) return h + '<p class="msg err">Чтобы включить напоминания, выполните один раз код reminders.sql в Supabase.</p></section>';
     h += '<p class="rem-st"><b>На телефон:</b> ' + (remSt.push_ready ? 'включили ' + (remSt.push_subs || 0) + ' ' + devWord(remSt.push_subs || 0) + '. Участники включают их сами на вкладке «Неделя».' : 'настраиваются…') +
       (remSt.cron ? '' : ' · <span class="down">расписание не запущено</span>') + '</p>';
+    if (remSt.push_ready) h += '<div class="actions"><button class="ghost gold small" type="button" id="push-test">Отправить тестовое уведомление мне</button></div>';
     h += '<p class="rem-st"><b>В Telegram-группу</b> (по желанию): ' + (remSt.chat_id ? '✓ <b>' + esc(remSt.chat_title || remSt.chat_id) + '</b>' : 'группа не выбрана') + '</p>';
     if (remChats) {
       h += remChats.length ? '<div class="rem-chats">' + remChats.map(function (c) {
@@ -1163,6 +1164,14 @@
     sb.rpc('set_reminder_chat', { chat: id, title: title }).then(function (r) {
       if (r.error) return toast('Не удалось сохранить: ' + r.error.message, 'err');
       remChats = null; remSt.chat_id = id; remSt.chat_title = title; renderPeople(); toast('Напоминания будут приходить в «' + title + '»');
+    });
+  }
+  function pushTest(btn) {
+    btn.disabled = true; btn.textContent = 'Отправляем…';
+    remCall({ action: 'push-test' }).then(function (r) {
+      btn.disabled = false; btn.textContent = 'Отправить тестовое уведомление мне';
+      if (r && r.status === 200) return toast('Отправлено на ваши устройства: ' + r.body.ok + ' ✓');
+      toast((r && r.body && r.body.error) || 'Не удалось отправить', 'err');
     });
   }
   function remTest(btn) {
@@ -1319,6 +1328,7 @@
     if (t.id === 'tg-test') return testTelegram(t);
     if (t.id === 'rem-find') return remFind(t);
     if (t.id === 'rem-test') return remTest(t);
+    if (t.id === 'push-test') return pushTest(t);
     if (t.dataset.remchat) return remChoose(t.dataset.remchat, t.dataset.remtitle);
     if (t.id === 'logout') { sb.auth.signOut(); return; }
     if (t.closest('#tabs') && t.dataset.tab) return show(t.dataset.tab);

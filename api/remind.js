@@ -126,6 +126,20 @@ module.exports = async (req, res) => {
     return res.status(set.ok ? 200 : 500).json({ ok: set.ok, created: set.ok });
   }
 
+  if (body.action === 'push-test') {
+    const b = await rpc('push_test_bundle', {}, userToken);
+    if (!b.ok || !b.json) return res.status(409).json({ error: 'Выполните обновлённый reminders.sql в Supabase' });
+    const subs = b.json.subs || [];
+    if (!b.json.vapid_private) return res.status(409).json({ error: 'Ключи уведомлений ещё не созданы' });
+    if (!subs.length) return res.status(409).json({ error: 'Сначала включите напоминания на своём телефоне (вкладка «Неделя»)' });
+    const webpush = require('web-push');
+    webpush.setVapidDetails(SITE_URL, b.json.vapid_public, b.json.vapid_private);
+    const payload = JSON.stringify({ title: 'Тестовое напоминание', body: 'Так будут выглядеть напоминания об эфирах. Нажмите, чтобы открыть трекер.', url: SITE_URL, tag: 'test' });
+    let ok = 0; const errors = [];
+    await Promise.all(subs.map((sub) => webpush.sendNotification(sub, payload, { TTL: 600 }).then(() => { ok++; }, (e) => { errors.push(e && e.statusCode); })));
+    return res.status(ok ? 200 : 502).json({ ok, total: subs.length, errors });
+  }
+
   if (!botToken) return res.status(503).json({ error: 'telegram_not_configured' });
 
   if (body.action === 'find') {
