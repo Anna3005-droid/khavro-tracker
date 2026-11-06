@@ -55,7 +55,7 @@
   function blankWeek() { return { meet: 0, group: 0, chat: 0, buddy: 0, practices: [0, 0, 0], pnotes: ['', '', ''], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, insight: '', action: '', recap: '' }; }
   function blank() {
     var w = []; for (var i = 0; i < 8; i++) w.push(blankWeek());
-    return { start: { name: '', cur: '€', date: DEFAULT_START, income: '', sit: [0, 0, 0, 0, 0], res: [0, 0, 0, 0, 0] }, weeks: w, end: { income: '', res: [0, 0, 0, 0, 0] } };
+    return { start: { name: '', cur: '€', date: DEFAULT_START, income: '', sit: [0, 0, 0, 0, 0], res: [0, 0, 0, 0, 0] }, weeks: w, end: { income: '', res: [0, 0, 0, 0, 0] }, cards: [] };
   }
   function valid(o) { return o && o.weeks && o.weeks.length === 8 && o.start && o.end; }
   function norm(o) {
@@ -67,6 +67,7 @@
     // Доход фиксируется дважды: на старте и в конце программы (в месяц)
     if (o.start.income == null) o.start.income = '';
     if (o.end.income == null) o.end.income = '';
+    if (!Array.isArray(o.cards)) o.cards = [];
     o.weeks.forEach(function (w) {
       if (!Array.isArray(w.practices)) w.practices = [0, 0, 0];
       if (!Array.isArray(w.pnotes)) w.pnotes = ['', '', ''];
@@ -167,6 +168,7 @@
   }
   // Линейные иконки 24×24 для вкладок и чек-листа
   var ICON = {
+    cards: '<rect x="3" y="6" width="12" height="16" rx="2" transform="rotate(-8 9 14)"/><rect x="9" y="3" width="12" height="16" rx="2"/><path d="M15 8.5l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>',
     start: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
     weeks: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
     practice: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
@@ -952,18 +954,107 @@
     lastHelpCount = n;
   }
 
+  // ---------- Карты ----------
+  // Колода вопросов к себе по темам программы. Участник тянет случайную карту сколько угодно раз;
+  // вытянутые карты и заметки хранятся в его трекере (S.cards), новые сверху, последние 40.
+  var CARDS = [
+    ['Деньги', 'Сколько денег вам можно иметь, чтобы это было безопасно? Откуда взялась эта сумма?'],
+    ['Деньги', 'Что вы сделаете в первую очередь, когда ваш доход вырастет в два раза?'],
+    ['Деньги', 'Какую фразу о деньгах вы чаще всего слышали в детстве?'],
+    ['Деньги', 'Что вы чувствуете, когда называете свою цену?'],
+    ['Деньги', 'На что вам жалко тратить деньги, даже когда они есть?'],
+    ['Деньги', 'Если бы деньги были человеком, какие у вас были бы отношения?'],
+    ['Деньги', 'Какую сумму вам сейчас страшно даже написать как цель? Напишите её.'],
+    ['Самосаботаж', 'Что вы откладываете, хотя знаете, что это приведёт к деньгам?'],
+    ['Самосаботаж', 'Какая скрытая выгода есть в том, чтобы всё оставалось как есть?'],
+    ['Самосаботаж', 'Что случится плохого, если у вас всё получится?'],
+    ['Самосаботаж', 'Где вы делаете много действий, чтобы не делать одно главное?'],
+    ['Самосаботаж', 'Какое решение вы принимаете снова и снова, но не выполняете?'],
+    ['Прошлое', 'Какой эпизод из прошлого до сих пор решает за вас, сколько вы зарабатываете?'],
+    ['Прошлое', 'Какую историю о себе вы рассказываете так давно, что поверили в неё?'],
+    ['Прошлое', 'Что вы так и не завершили, и оно продолжает забирать силы?'],
+    ['Родители', 'Чьё одобрение вам всё ещё нужно, чтобы зарабатывать больше?'],
+    ['Родители', 'Чем вы хотите отличаться от родителей в отношениях с деньгами? Чем на них похожи?'],
+    ['Родители', 'Кого вы бы обогнали, если бы стали зарабатывать намного больше?'],
+    ['Родители', 'Какое ожидание от родителей пора отпустить?'],
+    ['Опора', 'На что вы опираетесь, когда страшно?'],
+    ['Опора', 'За что вы можете уважать себя уже сегодня, без новых результатов?'],
+    ['Опора', 'Что вы бы делали иначе, если бы точно знали, что достаточно хороши?'],
+    ['Опора', 'Где вы соглашаетесь на меньшее, чем стоите?'],
+    ['Опора', 'Кому или чему вы отдаёте силы, которые могли бы пойти на ваши цели?'],
+    ['Проявленность', 'Что о вас должны узнать люди, чтобы захотеть у вас купить?'],
+    ['Проявленность', 'Чего вы боитесь, когда представляете, что вас видят тысячи людей?'],
+    ['Проявленность', 'Чьё мнение останавливает вас сильнее всего?'],
+    ['Проявленность', 'Какое ваше место вы до сих пор уступаете другим?'],
+    ['Проявленность', 'Что бы вы сказали миру, если бы не боялись осуждения?'],
+    ['Масштаб', 'Каким был бы ваш день, если бы вы уже зарабатывали желаемое?'],
+    ['Масштаб', 'Что в вашей жизни должно измениться, чтобы она вместила больше денег?'],
+    ['Масштаб', 'Какое убеждение мешает вам поверить, что большие деньги возможны для вас?'],
+    ['Масштаб', 'Кого вы видите рядом с собой на новом уровне? Кого нет?'],
+    ['Масштаб', 'Какой шаг сейчас кажется слишком большим? Каким будет его первая маленькая часть?'],
+    ['Сценарии', 'Какой цикл повторяется в вашей жизни снова и снова?'],
+    ['Сценарии', 'Где проходит ваш потолок? Что происходит каждый раз, когда вы к нему подходите?'],
+    ['Сценарии', 'Какую роль вы привыкли играть в жизни и в деньгах? Что она вам даёт?'],
+    ['Новая я', 'Как говорит, одевается и принимает решения ваша новая версия?'],
+    ['Новая я', 'Какую привычку ваша новая версия оставила бы в прошлом уже сегодня?'],
+    ['Новая я', 'Какое решение ваша новая версия приняла бы прямо сейчас?'],
+    ['Новая я', 'Что вы готовы отпустить, чтобы освободить место новому?'],
+    ['Новая я', 'Какое одно действие на этой неделе приблизит вас к деньгам, а не только к инсайту?']
+  ];
+  var cardFlip = false;
+  function cardDate(iso) {
+    var d = new Date(iso); if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  }
+  function drawCard() {
+    if (!S) return;
+    // Не повторяем карты, вытянутые недавно, пока в колоде есть другие
+    var recent = S.cards.slice(0, Math.min(15, CARDS.length - 1)).map(function (c) { return c.i; });
+    var pool = []; for (var i = 0; i < CARDS.length; i++) if (recent.indexOf(i) < 0) pool.push(i);
+    var pick = pool[Math.floor(Math.random() * pool.length)];
+    S.cards.unshift({ i: pick, at: new Date().toISOString(), note: '' });
+    if (S.cards.length > 40) S.cards.length = 40;
+    cardFlip = true; touch(); renderCards();
+  }
+  function cardFace(c, big) {
+    var k = CARDS[c.i] || ['', ''];
+    return '<div class="mcard face' + (big ? ' big' : '') + '"><span class="mc-theme">' + esc(k[0]) + '</span><p class="mc-text">' + esc(k[1]) + '</p><span class="mc-mark">Т Х</span></div>';
+  }
+  function renderCards() {
+    var h = '<h2>Карты</h2><p class="note">Подумайте о том, что сейчас важно, и вытяните карту. Отвечайте первым, что приходит в голову, без правильных ответов. Тянуть можно сколько угодно раз.</p>';
+    var last = S && S.cards[0] && CARDS[S.cards[0].i] ? S.cards[0] : null;
+    h += '<div class="deck">';
+    if (last) {
+      h += '<div class="deck-stage' + (cardFlip ? ' flip' : '') + '">' + cardFace(last, true) + '</div>' +
+        '<label class="f deck-note" for="card-note">Что откликнулось<textarea id="card-note" data-bind="cards.0.note" placeholder="Первое, что пришло в голову">' + esc(last.note) + '</textarea></label>' +
+        '<button class="ghost gold" type="button" id="card-draw">Вытянуть ещё карту</button>';
+    } else {
+      h += '<button class="mcard back" type="button" id="card-draw" aria-label="Вытянуть карту"><span class="mc-mono">Т Х</span><span class="mc-cta">Нажмите, чтобы вытянуть карту</span></button>';
+    }
+    h += '</div>';
+    var older = S ? S.cards.slice(1).filter(function (c) { return CARDS[c.i]; }) : [];
+    if (older.length) {
+      h += '<h3 class="deck-h">Ваши карты</h3><div class="feed">' + older.map(function (c) {
+        var k = CARDS[c.i];
+        return '<article><h4>' + esc(k[0]) + ' · ' + esc(cardDate(c.at)) + '</h4><p>' + esc(k[1]) + '</p>' + (c.note ? '<p><small>Отклик</small>' + esc(c.note) + '</p>' : '') + '</article>';
+      }).join('') + '</div>';
+    }
+    $('cards').innerHTML = h;
+    cardFlip = false;
+  }
+
   // ---------- Навигация ----------
   function render() {
     renderViewbar();
     if (tab === 'start') renderStart(); else if (tab === 'weeks') renderWeeks(); else if (tab === 'total') renderTotal();
-    else if (tab === 'practice') renderPractice(); else renderPeople();
+    else if (tab === 'practice') renderPractice(); else if (tab === 'cards') renderCards(); else renderPeople();
   }
   function show(t) {
     tab = t;
-    if (t === 'people' || t === 'practice') VIEW = null;
+    if (t === 'people' || t === 'practice' || t === 'cards') VIEW = null;
     document.querySelectorAll('#tabs .tab').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'); });
-    ['start', 'weeks', 'practice', 'total', 'people'].forEach(function (id) { $(id).hidden = id !== t; });
-    $('reset').hidden = t === 'people' || t === 'practice' || !!VIEW;
+    ['start', 'weeks', 'practice', 'cards', 'total', 'people'].forEach(function (id) { $(id).hidden = id !== t; });
+    $('reset').hidden = t === 'people' || t === 'practice' || t === 'cards' || !!VIEW;
     render();
     window.scrollTo(0, 0);
   }
@@ -1040,6 +1131,7 @@
     if (t.id === 'tg-test') return testTelegram(t);
     if (t.id === 'logout') { sb.auth.signOut(); return; }
     if (t.closest('#tabs') && t.dataset.tab) return show(t.dataset.tab);
+    if (t.id === 'card-draw') return drawCard();
     if (t.classList.contains('pchip')) {
       if (pdraft && pdraft.dirty && t.dataset.arm !== '1') { t.dataset.arm = '1'; peMsg('Есть несохранённые изменения. Нажмите неделю ещё раз, чтобы уйти без сохранения.', 'err'); return; }
       cur = Number(t.dataset.pw); pdraft = null; return renderPractice();

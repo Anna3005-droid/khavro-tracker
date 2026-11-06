@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="practice.css">
 <link rel="stylesheet" href="help.css">
 <link rel="stylesheet" href="plans.css">
+<link rel="stylesheet" href="cards.css">
 <style>
   :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   [hidden] { display: none !important; }
@@ -86,6 +87,7 @@
         <button class="tab" role="tab" id="t-start" data-tab="start" aria-selected="true">Старт</button>
         <button class="tab" role="tab" id="t-weeks" data-tab="weeks" aria-selected="false">Неделя</button>
         <button class="tab" role="tab" id="t-practice" data-tab="practice" aria-selected="false">Практики</button>
+        <button class="tab" role="tab" id="t-cards" data-tab="cards" aria-selected="false">Карты</button>
         <button class="tab" role="tab" id="t-total" data-tab="total" aria-selected="false">Итоги</button>
       </nav>
       <main>
@@ -95,6 +97,7 @@
         <section id="start" role="tabpanel" aria-labelledby="t-start"></section>
         <section id="weeks" role="tabpanel" aria-labelledby="t-weeks" hidden></section>
         <section id="practice" role="tabpanel" aria-labelledby="t-practice" hidden></section>
+        <section id="cards" role="tabpanel" aria-labelledby="t-cards" hidden></section>
         <section id="total" role="tabpanel" aria-labelledby="t-total" hidden></section>
         <section id="people" role="tabpanel" aria-labelledby="t-people" hidden></section>
       </main>
