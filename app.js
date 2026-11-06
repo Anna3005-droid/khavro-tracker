@@ -472,12 +472,14 @@
     return addDays(d, (4 - d.getDay() + 7) % 7);
   }
   function meetingBlock() {
-    var m = meetings[cur + 1] || {}, live = safeLink(m.live_url), rec = safeLink(m.record_url);
+    var m = meetings[cur + 1] || {}, live = safeLink(m.live_url), recs = recLinks(m.record_url).filter(safeLink), rec = recs.length > 0;
     var day = meetingDate(cur), when = day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
     var h = '<div class="meet"><span class="ci">' + svg('meet') + '</span><div class="hb-text"><b>' + (isRec() ? 'Запись встречи с Татьяной' : 'Встреча с Татьяной') + '</b>' +
       '<small>' + (when ? when.charAt(0).toUpperCase() + when.slice(1) : '') + '</small></div><div class="meet-acts">';
     if (!isRec() && live) h += '<a class="btnlink" href="' + esc(live) + '" target="_blank" rel="noopener">Перейти на эфир</a>';
-    if (rec) h += '<a class="btnlink ghostlink" href="' + esc(rec) + '" target="_blank" rel="noopener">Смотреть запись</a>';
+    recs.forEach(function (u, k) {
+      h += '<a class="btnlink ghostlink" href="' + esc(u) + '" target="_blank" rel="noopener">' + (recs.length > 1 ? 'Запись · часть ' + (k + 1) : 'Смотреть запись') + '</a>';
+    });
     if (!rec && (isRec() || !live)) h += '<span class="meet-wait">' + (isRec() ? 'Запись появится через сутки после эфира' : 'Ссылка появится перед встречей') + '</span>';
     h += '</div>';
     if (admin && !VIEW) {
@@ -485,15 +487,15 @@
       h += '<div class="meet-edit">' +
         (meetingsMissing ? '<p class="msg err">Чтобы сохранять ссылки, выполните один раз код meetings.sql в Supabase.</p>' : '') +
         '<label class="f" for="me-live">Ссылка на эфир (видят «Поток», «Глубина», VIP)<input type="text" id="me-live" data-mdraft="live" value="' + esc(mdraft.live) + '" placeholder="https://"></label>' +
-        '<label class="f" for="me-rec">Ссылка на запись (видят все)<input type="text" id="me-rec" data-mdraft="rec" value="' + esc(mdraft.rec) + '" placeholder="https://"></label>' +
+        '<label class="f" for="me-rec">Ссылки на запись (видят все). Если запись разделена на части, вставьте каждую ссылку с новой строки<textarea id="me-rec" data-mdraft="rec" rows="3" placeholder="https://… часть 1&#10;https://… часть 2">' + esc(mdraft.rec) + '</textarea></label>' +
         '<div class="actions"><button class="ghost gold small" type="button" id="me-save">Сохранить ссылки</button></div></div>';
     }
     return h + '</div>';
   }
   function saveMeeting(btn) {
     var d = mdraft; if (!d) return;
-    var live = d.live.trim(), rec = d.rec.trim();
-    if ((live && !safeLink(live)) || (rec && !safeLink(rec))) return toast('Ссылка должна начинаться с https://', 'err');
+    var live = d.live.trim(), list = recLinks(d.rec), rec = list.join('\n');
+    if ((live && !safeLink(live)) || list.some(function (u) { return !safeLink(u); })) return toast('Каждая ссылка должна начинаться с https://', 'err');
     btn.disabled = true;
     sb.from('meetings').upsert({ week: d.week, live_url: live, record_url: rec, updated_at: new Date().toISOString() }).select().single().then(function (r) {
       btn.disabled = false;
@@ -519,6 +521,8 @@
     if (!imgs.length) return '';
     return '<div class="gallery' + (imgs.length === 1 ? ' one' : '') + '">' + imgs.map(function (im) { return '<img src="' + esc(im.url) + '" alt="" loading="lazy">'; }).join('') + '</div>';
   }
+  // Запись урока может быть разделена на части: ссылки хранятся в одном поле, каждая с новой строки
+  function recLinks(v) { return String(v || '').split(/\s+/).map(function (x) { return x.trim(); }).filter(Boolean); }
   function safeLink(u) { return /^https?:\/\//i.test(u || '') ? u : ''; }
 
   function loadPractices() {
