@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Как пользоваться трекером</title>
+<meta name="description" content="Короткая инструкция для участников программы «Психология финансового масштаба»">
+<meta name="theme-color" content="#031426">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500&family=Onest:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #031426; --surface: #0A2140; --ink: #FFFFFF; --muted: #8FA3C0; --gold: #1A84FF;
+  --line: rgba(26, 132, 255, 0.32); --line-soft: rgba(255, 255, 255, 0.12);
+  --display: "Cormorant Garamond", Georgia, serif; --body: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); padding: 16px 16px 60px; }
+.wrap { max-width: 620px; margin: 0 auto; }
+.top { display: flex; justify-content: space-between; font-family: var(--display); letter-spacing: .18em; color: var(--gold); font-size: 15px; }
+.by { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 28px 0 10px; }
+h1 { font-family: var(--display); font-weight: 500; font-size: clamp(36px, 9vw, 52px); line-height: 1.05; margin: 0 0 14px; }
+h1 em { color: var(--gold); }
+.lead { color: var(--muted); margin: 0 0 18px; }
+.cta { display: inline-block; background: var(--gold); color: #fff; text-decoration: none; font-weight: 600; padding: 13px 22px; border-radius: 999px; }
+.toc { list-style: none; padding: 0; margin: 26px 0 8px; display: grid; gap: 6px; counter-reset: t; }
+.toc a { color: var(--ink); text-decoration: none; display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.toc a::before { counter-increment: t; content: counter(t); font-family: var(--display); color: var(--gold); font-size: 22px; min-width: 22px; }
+section { margin-top: 48px; scroll-margin-top: 16px; }
+.step { font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); margin: 0 0 6px; }
+h2 { font-family: var(--display); font-weight: 500; font-size: clamp(28px, 7vw, 36px); line-height: 1.1; margin: 0 0 12px; }
+p { margin: 0 0 12px; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+li::marker { color: var(--gold); }
+b { font-weight: 600; }
+figure { margin: 16px 0 18px; }
+figure img { display: block; width: 100%; max-width: 390px; height: auto; margin: 0 auto; border-radius: 16px; border: 1px solid var(--line-soft); }
+figure.small img { max-width: 390px; }
+.tip { background: var(--surface); border-left: 2px solid var(--gold); padding: 12px 14px; border-radius: 4px; font-size: 15px; margin: 14px 0; }
+.tip b { color: var(--gold); }
+.foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 14px; text-align: center; }
+.foot .cta { margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span>Т Х</span><span>инструкция</span></div>
+  <p class="by">Психология финансового масштаба</p>
+  <h1>Как пользоваться <em>трекером</em></h1>
+  <p class="lead">Самое необходимое за пять минут: как зарегистрироваться, что отмечать каждую неделю и где найти практики.</p>
+  <a class="cta" href="./">Открыть трекер</a>
+
+  <ol class="toc">
+    <li><a href="#reg">Регистрация</a></li>
+    <li><a href="#home">Иконка на телефоне</a></li>
+    <li><a href="#tabs">Разделы трекера</a></li>
+    <li><a href="#week">Неделя: встреча и отметки</a></li>
+    <li><a href="#practice">Практики и техники</a></li>
+    <li><a href="#total">Итоги</a></li>
+  </ol>
+
+  <section id="reg">
+    <p class="step">Шаг 1</p>
+    <h2>Регистрация</h2>
+    <ol>
+      <li>Откройте трекер по ссылке и нажмите <b>«Регистрация»</b>.</li>
+      <li>Впишите имя и фамилию, выберите свой тариф, укажите ник в Telegram (через него с вами свяжется куратор).</li>
+      <li>Введите почту и придумайте пароль от 6 символов. Нажмите <b>«Зарегистрироваться»</b>.</li>
+    </ol>
+    <figure><img src="guide/01-signup.jpg" alt="Экран регистрации: имя, тариф, ник в Telegram, почта и пароль" width="368" height="1031" loading="lazy"></figure>
+    <div class="tip"><b>В следующий раз</b> нажимайте «Вход» и вводите ту же почту и пароль. Забыли пароль — нажмите «Забыли пароль?» под кнопкой входа.</div>
+  </section>
+
+  <section id="home">
+    <p class="step">Шаг 2</p>
+    <h2>Иконка на телефоне</h2>
+    <p>Чтобы трекер открывался как приложение, добавьте его на главный экран:</p>
+    <ul>
+      <li><b>iPhone (Safari):</b> кнопка «Поделиться» внизу → «На экран „Домой“».</li>
+      <li><b>Android (Chrome):</b> три точки справа сверху → «Добавить на главный экран».</li>
+    </ul>
+  </section>
+
+  <section id="tabs">
+    <p class="step">Шаг 3</p>
+    <h2>Разделы трекера</h2>
+    <p>Внизу экрана четыре вкладки:</p>
+    <figure class="small"><img src="guide/10-tabs.jpg" alt="Нижнее меню: Старт, Неделя, Практики, Итоги" width="390" height="80" loading="lazy"></figure>
+    <ul>
+      <li><b>Старт</b> — заполняется один раз в начале: что вы узнаёте в себе, доход на старте и где вы сейчас.</li>
+      <li><b>Неделя</b> — главный раздел, сюда заходите каждый день.</li>
+      <li><b>Практики</b> — задания модуля и техники для самостоятельной работы.</li>
+      <li><b>Итоги</b> — ваш прогресс за всю программу.</li>
+    </ul>
+    <div class="tip"><b>Всё сохраняется само</b> — кнопки «Сохранить» нет. Татьяна и кураторы видят ваши отметки.</div>
+  </section>
+
+  <section id="week">
+    <p class="step">Шаг 4</p>
+    <h2>Неделя: встреча и отметки</h2>
+    <p>Трекер сам открывает текущую неделю. Кольцо справа показывает, сколько пунктов недели вы уже выполнили.</p>
+    <p>В блоке <b>«Встреча с Татьяной»</b> — дата встречи, кнопка <b>«Перейти на эфир»</b> и записи. Если запись разделена на части, будет несколько кнопок.</p>
+    <figure><img src="guide/02-week-top.jpg" alt="Верх недели: приветствие, кольцо прогресса, выбор недели и блок встречи с кнопками эфира и записи" width="390" height="700" loading="lazy"></figure>
+
+    <p>Ниже отмечайте галочками, что сделали за неделю:</p>
+    <figure><img src="guide/03-week-checks.jpg" alt="Список на этой неделе: встреча с Татьяной, групповая терапия, сообщение психотерапевту, созвон с бадди" width="390" height="423" loading="lazy"></figure>
+
+    <p><b>Протокол для подсознания во сне</b> — отмечайте каждую ночь, когда слушали протокол перед сном. Первая неделя начинается с четверга, дальше недели идут с понедельника по воскресенье.</p>
+    <figure><img src="guide/04-nights.jpg" alt="Протокол во сне: отметки по ночам с датами" width="390" height="270" loading="lazy"></figure>
+
+    <p>В конце страницы недели — короткие записи для себя:</p>
+    <ul>
+      <li><b>Действие недели</b> — один шаг, который приведёт к деньгам.</li>
+      <li><b>Состояние</b> — оцените энергию в начале и в конце недели от 1 до 5.</li>
+      <li><b>Главный инсайт</b> и <b>итог недели</b> — своими словами.</li>
+    </ul>
+    <figure><img src="guide/05-reflection.jpg" alt="Действие недели, оценка состояния точками и поле для главного инсайта" width="390" height="635" loading="lazy"></figure>
+  </section>
+
+  <section id="practice">
+    <p class="step">Шаг 5</p>
+    <h2>Практики и техники</h2>
+    <p>Во вкладке <b>«Практики»</b> — задания текущего модуля. Практики открываются после встречи с Татьяной, поэтому в будущих неделях стоит «скоро».</p>
+    <ul>
+      <li>Кнопка <b>«Пройти практику»</b> открывает практику.</li>
+      <li><b>«Описание»</b> — подробности, что и как делать.</li>
+    </ul>
+    <figure><img src="guide/06-practice.jpg" alt="Вкладка Практики: выбор недели и карточка практики с кнопкой Пройти практику" width="390" height="573" loading="lazy"></figure>
+    <p>Когда выполните, запишите, что заметили, и нажмите <b>«Отметить выполненной»</b>.</p>
+    <figure><img src="guide/07-practice-done.jpg" alt="Поле для заметок после практики и кнопка Отметить выполненной" width="390" height="214" loading="lazy"></figure>
+    <p>Ниже, в блоке <b>«Техники»</b>, — тренажёры для самостоятельной работы между встречами: метафорические карты, проработка эмоций и полярностей. Каждый открывается отдельно.</p>
+    <figure><img src="guide/08-tools.jpg" alt="Блок Техники с карточкой Метафорические карты и кнопкой Открыть" width="390" height="454" loading="lazy"></figure>
+    <div class="tip"><b>Нужна помощь?</b> Раскройте практику: внизу есть кнопка «Написать куратору об этой практике», куратор свяжется с вами в Telegram. В тарифе «Записи» вопросы задаются в общем чате потока.</div>
+  </section>
+
+  <section id="total">
+    <p class="step">Шаг 6</p>
+    <h2>Итоги</h2>
+    <p>Здесь собирается всё, что вы отметили: встречи, групповые терапии, практики, ночи с протоколом, доход и состояние по неделям. Ничего заполнять не нужно, кроме дохода и оценки результатов в конце программы.</p>
+    <figure><img src="guide/09-total.jpg" alt="Итоги программы: встречи с Татьяной, групповые терапии, практики, ночи с протоколом" width="390" height="294" loading="lazy"></figure>
+  </section>
+
+  <div class="foot">
+    <p>Главное — заходить каждый день на вкладку «Неделя» и отмечать, что сделали.</p>
+    <a class="cta" href="./">Открыть трекер</a>
+  </div>
+</div>
+</body>
+</html>

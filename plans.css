@@ -35,3 +35,4 @@ select.plan-select.plan-none { color: var(--warn); }
 .meet-edit { grid-column: 1 / -1; display: grid; gap: 10px; padding-top: 12px; border-top: 1px dashed var(--line); }
 @media (min-width: 641px) { .meet { grid-template-columns: auto minmax(0, 1fr) auto; } .meet-acts { grid-column: auto; } }
 .admin-pill { color: var(--gold); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; vertical-align: middle; margin-left: 4px; }
+.guide-link { color: var(--gold); font-size: 14px; text-decoration: none; justify-self: center; }
