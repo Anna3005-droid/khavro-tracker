@@ -377,6 +377,7 @@
     h += '<h2>Участники программы</h2><p class="note">Здесь видно всё, что отмечают участники. Список обновляется каждую минуту. Нажмите на строку, чтобы открыть трекер человека.</p>';
     h += '<p class="actions" style="margin:0 0 20px"><button class="ghost gold" type="button" id="refresh">Обновить сейчас</button></p>';
     h += helpSection();
+    h += reminderSection();
     if (!P.length) {
       h += '<div class="empty"><b>Пока никто не заполнил трекер.</b><br>Отправьте участникам ссылку на этот сайт. Каждый регистрируется со своим email, и как только человек отметит первый пункт, он появится здесь.</div>';
       $('people').innerHTML = h; return;
@@ -539,7 +540,7 @@
     var d = cdraft;
     return '<div class="meet-edit cs-edit">' +
       '<div class="row"><label class="f" for="cs-day">Дата<input type="date" id="cs-day" data-cdraft="day" value="' + esc(d.day) + '"></label>' +
-      '<label class="f" for="cs-time">Время<input type="time" id="cs-time" data-cdraft="time" value="' + esc(d.time) + '"></label></div>' +
+      '<label class="f" for="cs-time">Время по Киеву<input type="time" id="cs-time" data-cdraft="time" value="' + esc(d.time) + '"></label></div>' +
       '<label class="f" for="cs-title">Тема<input type="text" id="cs-title" data-cdraft="title" value="' + esc(d.title) + '" placeholder="О чём занятие"></label>' +
       '<label class="f" for="cs-live">Ссылка на встречу<input type="text" id="cs-live" data-cdraft="live" value="' + esc(d.live) + '" placeholder="https://"></label>' +
       '<label class="f" for="cs-rec">Ссылки на запись, каждая с новой строки<textarea id="cs-rec" data-cdraft="rec" rows="2" placeholder="https://">' + esc(d.rec) + '</textarea></label>' +
@@ -1043,6 +1044,67 @@
       (done.length ? '<details class="hdone"><summary>Решённые: ' + done.length + '</summary>' + done.map(item).join('') + '</details>' : '') +
       '</section>';
   }
+  // ---------- Напоминания об эфирах в Telegram-группу ----------
+  // Сервер: api/remind.js, расписание и отметки: supabase/reminders.sql
+  var remSt = null, remChats = null, remLoading = false;
+  function loadReminderStatus() {
+    if (remLoading) return; remLoading = true;
+    sb.rpc('reminder_status').then(function (r) {
+      remLoading = false;
+      remSt = r.error ? { missing: true } : (r.data || {});
+      if (tab === 'people' && !VIEW) renderPeople();
+    });
+  }
+  function remCall(payload) {
+    return sb.auth.getSession().then(function (s) {
+      var token = s.data.session && s.data.session.access_token; if (!token) return null;
+      return fetch('api/remind', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, body: j }; }); });
+    }).catch(function () { return null; });
+  }
+  function reminderSection() {
+    if (!remSt) { loadReminderStatus(); return ''; }
+    var h = '<section class="helpsec remsec"><h3>Напоминания об эфирах</h3>' +
+      '<p class="note">В Telegram-группу участников за сутки и за час до начала: урок с Татьяной по четвергам в 9:00 по Киеву и занятия с кураторами, у которых указано время. Ссылка на эфир берётся из трекера.</p>';
+    if (remSt.missing) return h + '<p class="msg err">Чтобы включить напоминания, выполните один раз код reminders.sql в Supabase.</p></section>';
+    h += '<p class="rem-st">' + (remSt.chat_id ? '✓ Группа: <b>' + esc(remSt.chat_title || remSt.chat_id) + '</b>' : 'Группа ещё не выбрана') +
+      (remSt.cron ? '' : ' · <span class="down">расписание не запущено</span>') + '</p>';
+    if (remChats) {
+      h += remChats.length ? '<div class="rem-chats">' + remChats.map(function (c) {
+        return '<button class="ghost small" type="button" data-remchat="' + esc(c.id) + '" data-remtitle="' + esc(c.title) + '">Выбрать «' + esc(c.title) + '»</button>';
+      }).join('') + '</div>' : '<p class="note">Группы не нашлись. Добавьте бота в группу участников, напишите в группе любое сообщение и нажмите «Найти группу» ещё раз.</p>';
+    }
+    h += '<div class="actions"><button class="ghost gold small" type="button" id="rem-find">' + (remSt.chat_id ? 'Сменить группу' : 'Найти группу') + '</button>' +
+      (remSt.chat_id ? '<button class="ghost small" type="button" id="rem-test">Отправить проверку</button>' : '') + '</div></section>';
+    return h;
+  }
+  function remErr(r) {
+    if (!r) return 'Не удалось связаться с сервером';
+    if (r.status === 503) return 'Бот Telegram ещё не подключён в Vercel (TELEGRAM_BOT_TOKEN)';
+    return (r.body && r.body.error) || 'Ошибка ' + r.status;
+  }
+  function remFind(btn) {
+    btn.disabled = true; btn.textContent = 'Ищем…';
+    remCall({ action: 'find' }).then(function (r) {
+      btn.disabled = false;
+      if (!r || r.status !== 200) { renderPeople(); return toast(remErr(r), 'err'); }
+      remChats = r.body.chats || []; renderPeople();
+    });
+  }
+  function remChoose(id, title) {
+    sb.rpc('set_reminder_chat', { chat: id, title: title }).then(function (r) {
+      if (r.error) return toast('Не удалось сохранить: ' + r.error.message, 'err');
+      remChats = null; remSt.chat_id = id; remSt.chat_title = title; renderPeople(); toast('Напоминания будут приходить в «' + title + '»');
+    });
+  }
+  function remTest(btn) {
+    btn.disabled = true; btn.textContent = 'Отправляем…';
+    remCall({ action: 'test' }).then(function (r) {
+      btn.disabled = false; btn.textContent = 'Отправить проверку';
+      if (r && r.status === 200) return toast('Готово: проверьте группу ✓');
+      toast(remErr(r), 'err');
+    });
+  }
   function setHelpState(id, state) {
     if (!S.helpAdmin) S.helpAdmin = {};
     if (state === 'passed') {
@@ -1187,6 +1249,9 @@
     if (t.id === 'back') return show('people');
     if (t.id === 'refresh') { t.textContent = 'Обновляем…'; return loadPeople(); }
     if (t.id === 'tg-test') return testTelegram(t);
+    if (t.id === 'rem-find') return remFind(t);
+    if (t.id === 'rem-test') return remTest(t);
+    if (t.dataset.remchat) return remChoose(t.dataset.remchat, t.dataset.remtitle);
     if (t.id === 'logout') { sb.auth.signOut(); return; }
     if (t.closest('#tabs') && t.dataset.tab) return show(t.dataset.tab);
     if (t.classList.contains('pchip')) {

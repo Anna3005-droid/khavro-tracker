@@ -45,3 +45,4 @@ select.plan-select.plan-none { color: var(--warn); }
 .cs-title { margin: 0; color: var(--muted); font-size: 14px; }
 .cs-admin { margin: 2px 0 0; }
 @media (min-width: 641px) { .meet.cs .cs-list, .meet.cs .cs-full { grid-column: 1 / -1; } }
+.rem-st { margin: 0 0 10px; font-size: 14px; } .rem-chats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
