@@ -272,6 +272,7 @@
     if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Выберите ваш тариф</b><small>От тарифа зависит, что показывает трекер.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
     h += meetingBlock();
     h += curatorBlock();
+    h += pushBlock();
     h += helpBox('w');
     h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div><div class="theme"><h3>Результат модуля</h3><p>' + M[2] + '</p></div></div>';
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
@@ -579,6 +580,69 @@
       if (r.error) { btn.disabled = false; return toast('Не удалось удалить: ' + r.error.message, 'err'); }
       csessions = csessions.filter(function (x) { return x.id !== id; }); cdraft = null; renderWeeks(); toast('Занятие удалено');
     });
+  }
+
+  // ---------- Push-напоминания на телефон ----------
+  // Участник включает их один раз на своём устройстве. Рассылает api/remind.js по расписанию из Supabase.
+  // На iPhone работают только из трекера, добавленного на экран «Домой» (iOS 16.4+).
+  var pushState = 'unknown', swReg = null;
+  function pushSupported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  function isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function isStandalone() { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
+  function initPush() {
+    if (!('serviceWorker' in navigator)) { pushState = 'unsupported'; return; }
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      swReg = reg;
+      if (!pushSupported()) { pushState = isIOS() && !isStandalone() ? 'ios-install' : 'unsupported'; return; }
+      if (Notification.permission === 'denied') { pushState = 'denied'; return; }
+      return reg.pushManager.getSubscription().then(function (sub) {
+        pushState = sub ? 'on' : 'off';
+        if (sub) savePushSub(sub); // обновляем привязку к текущему участнику
+      });
+    }).catch(function () { pushState = 'unsupported'; }).then(function () { if (tab === 'weeks') renderWeeks(); });
+  }
+  function b64ToBytes(b64) {
+    var pad = '='.repeat((4 - b64.length % 4) % 4), raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out;
+  }
+  function savePushSub(sub) {
+    var j = sub.toJSON(), k = j.keys || {};
+    return sb.rpc('save_push_sub', { p_endpoint: j.endpoint, p_p256dh: k.p256dh, p_auth: k.auth });
+  }
+  function enablePush(btn) {
+    if (!swReg) return toast('Обновите страницу и попробуйте ещё раз', 'err');
+    btn.disabled = true; btn.textContent = 'Включаем…';
+    var fail = function (msg) { btn.disabled = false; btn.textContent = 'Включить напоминания'; toast(msg, 'err'); renderWeeks(); };
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') { pushState = perm === 'denied' ? 'denied' : 'off'; return fail('Без разрешения на уведомления напоминания не придут'); }
+      return sb.rpc('push_public_key').then(function (r) {
+        if (r.error || !r.data) return fail('Напоминания ещё не настроены. Напишите в чат группы.');
+        return swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(r.data) }).then(function (sub) {
+          return savePushSub(sub).then(function (s2) {
+            if (s2.error) return fail('Не удалось сохранить: ' + s2.error.message);
+            pushState = 'on'; renderWeeks(); toast('Напоминания включены ✓');
+            try { swReg.showNotification('Напоминания включены', { body: 'Мы напомним об эфирах за сутки и за час до начала.', icon: 'icons/icon-192.png' }); } catch (e) {}
+          });
+        });
+      });
+    }).catch(function (e) { fail('Не получилось включить: ' + (e && e.message || e)); });
+  }
+  function disablePush() {
+    if (!swReg) return;
+    swReg.pushManager.getSubscription().then(function (sub) {
+      if (!sub) return;
+      var ep = sub.endpoint;
+      return sub.unsubscribe().then(function () { return sb.rpc('delete_push_sub', { p_endpoint: ep }); });
+    }).then(function () { pushState = 'off'; renderWeeks(); toast('Напоминания выключены'); });
+  }
+  function pushBlock() {
+    if (VIEW || (isRec() && !admin) || pushState === 'unknown') return '';
+    var h = '<div class="meet push"><span class="ci">' + svg('bell') + '</span><div class="hb-text"><b>Напоминания на телефон</b>';
+    if (pushState === 'on') return h + '<small>Включены ✓ За сутки и за час до эфиров</small></div><div class="meet-acts"><button class="ghost small" type="button" id="push-off">Выключить</button></div></div>';
+    if (pushState === 'off') return h + '<small>Пришлём уведомление за сутки и за час до урока и занятий с кураторами</small></div><div class="meet-acts"><button class="btn" type="button" id="push-on">Включить напоминания</button></div></div>';
+    if (pushState === 'denied') return h + '<small>Уведомления запрещены. Разрешите их для этого сайта в настройках телефона или браузера и обновите страницу.</small></div></div>';
+    if (pushState === 'ios-install') return h + '<small>На iPhone сначала добавьте трекер на экран «Домой»: «Поделиться» → «На экран „Домой“». Откройте трекер с иконки, и здесь появится кнопка.</small></div></div>';
+    return h + '<small>Этот браузер не поддерживает уведомления. Откройте трекер в Chrome или Safari.</small></div></div>';
   }
 
   // Дата встречи: первый четверг недели программы
@@ -1052,6 +1116,8 @@
     sb.rpc('reminder_status').then(function (r) {
       remLoading = false;
       remSt = r.error ? { missing: true } : (r.data || {});
+      // Ключи push создаются сами при первом входе администратора
+      if (!remSt.missing && !remSt.push_ready) remCall({ action: 'push-setup' }).then(function (x) { if (x && x.status === 200) remSt.push_ready = true; if (tab === 'people' && !VIEW) renderPeople(); });
       if (tab === 'people' && !VIEW) renderPeople();
     });
   }
@@ -1065,10 +1131,11 @@
   function reminderSection() {
     if (!remSt) { loadReminderStatus(); return ''; }
     var h = '<section class="helpsec remsec"><h3>Напоминания об эфирах</h3>' +
-      '<p class="note">В Telegram-группу участников за сутки и за час до начала: урок с Татьяной по четвергам в 9:00 по Киеву и занятия с кураторами, у которых указано время. Ссылка на эфир берётся из трекера.</p>';
+      '<p class="note">За сутки и за час до начала: урок с Татьяной по четвергам в 9:00 по Киеву и занятия с кураторами, у которых указано время. Ссылка на эфир берётся из трекера.</p>';
     if (remSt.missing) return h + '<p class="msg err">Чтобы включить напоминания, выполните один раз код reminders.sql в Supabase.</p></section>';
-    h += '<p class="rem-st">' + (remSt.chat_id ? '✓ Группа: <b>' + esc(remSt.chat_title || remSt.chat_id) + '</b>' : 'Группа ещё не выбрана') +
+    h += '<p class="rem-st"><b>На телефон:</b> ' + (remSt.push_ready ? 'включили ' + (remSt.push_subs || 0) + ' ' + devWord(remSt.push_subs || 0) + '. Участники включают их сами на вкладке «Неделя».' : 'настраиваются…') +
       (remSt.cron ? '' : ' · <span class="down">расписание не запущено</span>') + '</p>';
+    h += '<p class="rem-st"><b>В Telegram-группу</b> (по желанию): ' + (remSt.chat_id ? '✓ <b>' + esc(remSt.chat_title || remSt.chat_id) + '</b>' : 'группа не выбрана') + '</p>';
     if (remChats) {
       h += remChats.length ? '<div class="rem-chats">' + remChats.map(function (c) {
         return '<button class="ghost small" type="button" data-remchat="' + esc(c.id) + '" data-remtitle="' + esc(c.title) + '">Выбрать «' + esc(c.title) + '»</button>';
@@ -1078,6 +1145,7 @@
       (remSt.chat_id ? '<button class="ghost small" type="button" id="rem-test">Отправить проверку</button>' : '') + '</div></section>';
     return h;
   }
+  function devWord(n) { var a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'устройство' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'устройства' : 'устройств'; }
   function remErr(r) {
     if (!r) return 'Не удалось связаться с сервером';
     if (r.status === 503) return 'Бот Telegram ещё не подключён в Vercel (TELEGRAM_BOT_TOKEN)';
@@ -1318,6 +1386,8 @@
     if (t.dataset.rmmedia != null) { pdraft.media.splice(Number(t.dataset.rmmedia), 1); pdraft.dirty = true; renderPractice(); return peMsg('Убрано. Нажмите «Сохранить».'); }
     if (t.id === 'me-save') return saveMeeting(t);
     if (t.id === 'cs-add') return csStart(null);
+    if (t.id === 'push-on') return enablePush(t);
+    if (t.id === 'push-off') return disablePush();
     if (t.id === 'cs-save') return csSave(t);
     if (t.id === 'cs-cancel') { cdraft = null; return renderWeeks(); }
     if (t.dataset.csedit) return csStart(t.dataset.csedit);
@@ -1495,6 +1565,7 @@
       } else if (!admin && pt) pt.remove();
       cur = currentWeek(S);
       pdraft = null; openCards = {}; mdraft = null; cdraft = null; loadPractices(); loadMeetings(); loadCurator();
+      if (pushState === 'unknown') initPush(); else if (pushState === 'on' && swReg) swReg.pushManager.getSubscription().then(function (sub) { if (sub) savePushSub(sub); });
       screen('app');
       syncState('on', isNew ? (admin ? 'Готово' : 'Готово. Татьяна увидит ваши отметки') : savedLabel());
       if (isNew) flush();

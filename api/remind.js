@@ -1,12 +1,13 @@
-// Серверная функция Vercel: напоминания об эфирах в Telegram-группу участников.
+// Серверная функция Vercel: напоминания об эфирах.
 //
 // 1) Каждые 5 минут её вызывает Supabase (pg_cron, см. supabase/reminders.sql) с секретным ключом.
-//    Функция спрашивает у базы, какие напоминания пора отправить, и шлёт их в группу.
-// 2) Администратор из кабинета «Участники» может найти группу ({action:'find'})
-//    и отправить проверочное сообщение ({action:'test'}).
+//    Функция спрашивает у базы, какие напоминания пора отправить, и рассылает их:
+//    push-уведомления на телефоны участников и, если выбрана группа, сообщение в Telegram.
+// 2) Администратор из кабинета «Участники»: создать ключи push ({action:'push-setup'}),
+//    найти Telegram-группу ({action:'find'}), отправить проверку в группу ({action:'test'}).
 //
-// Нужна переменная окружения в Vercel: TELEGRAM_BOT_TOKEN (тот же бот, что и для запросов помощи).
-// Бота нужно добавить в группу участников.
+// Для push ничего настраивать не нужно: ключи создаются сами и хранятся в Supabase.
+// Для Telegram нужна переменная окружения TELEGRAM_BOT_TOKEN в Vercel и бот в группе участников.
 
 const SUPABASE_URL = 'https://txyawjxefzzwxvypfvlr.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_TQj7UK_FS5p6nW7T3vRy7g_9x8DWxSV';
@@ -41,6 +42,35 @@ function dayLabel(iso) {
   return new Date(iso).toLocaleDateString('ru-RU', { timeZone: 'Europe/Kyiv', weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+function pushPayload(it) {
+  const live = safeLink(it.live_url);
+  const soon = it.kind === 'day' ? 'Завтра' : 'Через час';
+  const title = it.type === 'lesson' ? soon + ' урок с Татьяной' : soon + ' занятие с куратором';
+  const m = it.type === 'lesson' ? MODULES[(it.week || 1) - 1] : '';
+  const body = (it.kind === 'day' ? dayLabel(it.starts_at) + ', ' : 'Сегодня, ') + it.time + ' по Киеву' +
+    (it.type === 'lesson' ? ' · Модуль ' + it.week + (m ? '. ' + m : '') : (it.title ? ' · ' + it.title : '')) +
+    (live ? '\nНажмите, чтобы открыть эфир' : '\nСсылка на эфир будет в трекере');
+  return JSON.stringify({ title, body, url: live || SITE_URL, tag: (it.type || '') + '-' + (it.week || it.title || '') + '-' + it.kind });
+}
+
+async function sendPushes(info, items, cronKey) {
+  const subs = info.subs || [];
+  if (!subs.length || !info.vapid_public || !info.vapid_private) return { pushed: 0 };
+  const webpush = require('web-push');
+  webpush.setVapidDetails(SITE_URL, info.vapid_public, info.vapid_private);
+  const dead = new Set(); let ok = 0, fail = 0;
+  for (const it of items) {
+    const payload = pushPayload(it);
+    await Promise.all(subs.map(async (sub) => {
+      if (dead.has(sub.endpoint)) return;
+      try { await webpush.sendNotification(sub, payload, { TTL: 3600 }); ok++; }
+      catch (e) { fail++; if (e && (e.statusCode === 404 || e.statusCode === 410)) dead.add(sub.endpoint); }
+    }));
+  }
+  if (dead.size) await rpc('drop_push_subs', { k: cronKey, endpoints: Array.from(dead) });
+  return { pushed: ok, failed: fail, dropped: dead.size };
+}
+
 function message(it) {
   const live = safeLink(it.live_url);
   const when = it.kind === 'day' ? 'Завтра, ' + dayLabel(it.starts_at) + ', в ' + esc(it.time) + ' по Киеву' : 'Через час, в ' + esc(it.time) + ' по Киеву';
@@ -69,15 +99,17 @@ module.exports = async (req, res) => {
   if (cronKey) {
     const due = await rpc('due_reminders', { k: String(cronKey) });
     if (!due.ok) return res.status(403).json({ error: 'forbidden' });
-    const chat = due.json && due.json.chat, items = (due.json && due.json.items) || [];
-    if (!chat || !items.length) return res.status(200).json({ sent: 0 });
-    if (!botToken) return res.status(503).json({ error: 'telegram_not_configured' });
+    const info = due.json || {}, chat = info.chat, items = info.items || [];
+    if (!items.length) return res.status(200).json({ sent: 0 });
+    const push = await sendPushes(info, items, String(cronKey)).catch((e) => ({ error: String(e && e.message || e) }));
     const out = [];
-    for (const it of items) {
-      const j = await tg(botToken, 'sendMessage', { chat_id: chat, text: message(it), parse_mode: 'HTML', disable_web_page_preview: true });
-      out.push({ ok: !!j.ok, error: j.description });
+    if (chat && botToken) {
+      for (const it of items) {
+        const j = await tg(botToken, 'sendMessage', { chat_id: chat, text: message(it), parse_mode: 'HTML', disable_web_page_preview: true });
+        out.push({ ok: !!j.ok, error: j.description });
+      }
     }
-    return res.status(200).json({ sent: out });
+    return res.status(200).json({ push, telegram: out });
   }
 
   // Действия администратора из кабинета
@@ -85,6 +117,15 @@ module.exports = async (req, res) => {
   if (!userToken) return res.status(401).json({ error: 'Нужен вход' });
   const isAdmin = await rpc('is_admin', {}, userToken);
   if (!isAdmin.ok || isAdmin.json !== true) return res.status(403).json({ error: 'Только для администратора' });
+
+  if (body.action === 'push-setup') {
+    const cur = await rpc('push_public_key', {}, userToken);
+    if (cur.ok && cur.json) return res.status(200).json({ ok: true, created: false });
+    const keys = require('web-push').generateVAPIDKeys();
+    const set = await rpc('set_push_keys', { pub: keys.publicKey, priv: keys.privateKey }, userToken);
+    return res.status(set.ok ? 200 : 500).json({ ok: set.ok, created: set.ok });
+  }
+
   if (!botToken) return res.status(503).json({ error: 'telegram_not_configured' });
 
   if (body.action === 'find') {
