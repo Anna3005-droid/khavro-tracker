@@ -271,6 +271,7 @@
     h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
     if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Выберите ваш тариф</b><small>От тарифа зависит, что показывает трекер.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
     h += meetingBlock();
+    h += curatorBlock();
     h += helpBox('w');
     h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div><div class="theme"><h3>Результат модуля</h3><p>' + M[2] + '</p></div></div>';
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
@@ -486,6 +487,99 @@
       if (tab === 'weeks') renderWeeks();
     });
   }
+  // ---------- Занятия с кураторами ----------
+  // Отдельные встречи в течение недели. Неделя программы определяется по дате занятия.
+  // Тариф «Записи» без куратора, поэтому блок ему не показывается. Таблица: supabase/curator-sessions.sql
+  var csessions = [], csLoaded = false, csMissing = false, cdraft = null;
+  function loadCurator() {
+    return sb.from('curator_sessions').select('*').order('day').order('time').then(function (r) {
+      csLoaded = true; csMissing = !!r.error; csessions = r.data || [];
+      if (tab === 'weeks') renderWeeks();
+    });
+  }
+  function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function weekSessions(i) {
+    var a = weekStart(i); if (!a) return [];
+    var from = ymd(a), to = ymd(addDays(a, weekLen(i) - 1));
+    return csessions.filter(function (c) { return c.day >= from && c.day <= to; })
+      .sort(function (x, y) { return (x.day + x.time).localeCompare(y.day + y.time); });
+  }
+  function csWhen(c) {
+    var d = new Date(c.day + 'T00:00:00'); if (isNaN(d.getTime())) return '';
+    var t = d.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+    return t.charAt(0).toUpperCase() + t.slice(1) + (c.time ? ', ' + c.time : '');
+  }
+  function csPast(c) { return c.day < ymd(new Date()); }
+  function curatorBlock() {
+    if (isRec() && !admin) return '';
+    var list = weekSessions(cur), editing = admin && !VIEW;
+    var h = '<div class="meet cs"><span class="ci">' + svg('chat') + '</span><div class="hb-text"><b>Занятия с кураторами</b>' +
+      '<small>' + (list.length ? 'На этой неделе: ' + list.length : 'Расписание уточняется') + '</small></div>';
+    if (list.length) {
+      h += '<div class="cs-list">' + list.map(function (c) {
+        var live = safeLink(c.live_url), recs = recLinks(c.record_url).filter(safeLink), past = csPast(c);
+        var acts = '';
+        if (live && !past) acts += '<a class="btnlink" href="' + esc(live) + '" target="_blank" rel="noopener">Подключиться</a>';
+        recs.forEach(function (u, k) { acts += '<a class="btnlink ghostlink" href="' + esc(u) + '" target="_blank" rel="noopener">' + (recs.length > 1 ? 'Запись · часть ' + (k + 1) : 'Смотреть запись') + '</a>'; });
+        if (!acts) acts = '<span class="meet-wait">' + (past ? 'Запись появится позже' : 'Ссылка появится перед занятием') + '</span>';
+        return '<div class="cs-item' + (past ? ' past' : '') + '"><p class="cs-when">' + esc(csWhen(c)) + '</p>' +
+          (c.title ? '<p class="cs-title">' + esc(c.title) + '</p>' : '') + '<div class="meet-acts">' + acts + '</div>' +
+          (editing ? '<div class="actions cs-admin"><button class="ghost small" type="button" data-csedit="' + esc(c.id) + '">Изменить</button><button class="ghost small" type="button" data-csdel="' + esc(c.id) + '">Удалить</button></div>' : '') +
+          (editing && cdraft && cdraft.id === c.id ? csEditor() : '') + '</div>';
+      }).join('') + '</div>';
+    }
+    if (editing) {
+      if (csMissing) h += '<p class="msg err cs-full">Чтобы добавлять занятия, выполните один раз код curator-sessions.sql в Supabase.</p>';
+      else if (cdraft && !cdraft.id) h += '<div class="cs-full">' + csEditor() + '</div>';
+      else h += '<div class="actions cs-full"><button class="ghost gold small" type="button" id="cs-add">+ Добавить занятие</button></div>';
+    }
+    return h + '</div>';
+  }
+  function csEditor() {
+    var d = cdraft;
+    return '<div class="meet-edit cs-edit">' +
+      '<div class="row"><label class="f" for="cs-day">Дата<input type="date" id="cs-day" data-cdraft="day" value="' + esc(d.day) + '"></label>' +
+      '<label class="f" for="cs-time">Время<input type="time" id="cs-time" data-cdraft="time" value="' + esc(d.time) + '"></label></div>' +
+      '<label class="f" for="cs-title">Тема<input type="text" id="cs-title" data-cdraft="title" value="' + esc(d.title) + '" placeholder="О чём занятие"></label>' +
+      '<label class="f" for="cs-live">Ссылка на встречу<input type="text" id="cs-live" data-cdraft="live" value="' + esc(d.live) + '" placeholder="https://"></label>' +
+      '<label class="f" for="cs-rec">Ссылки на запись, каждая с новой строки<textarea id="cs-rec" data-cdraft="rec" rows="2" placeholder="https://">' + esc(d.rec) + '</textarea></label>' +
+      '<div class="actions"><button class="ghost gold small" type="button" id="cs-save">Сохранить занятие</button><button class="ghost small" type="button" id="cs-cancel">Отмена</button></div></div>';
+  }
+  function csStart(id) {
+    var c = id ? csessions.filter(function (x) { return x.id === id; })[0] : null;
+    var a = weekStart(cur), today = ymd(new Date()), from = a ? ymd(a) : today, to = a ? ymd(addDays(a, weekLen(cur) - 1)) : today;
+    cdraft = c ? { id: c.id, day: c.day, time: c.time || '', title: c.title || '', live: c.live_url || '', rec: c.record_url || '' }
+      : { id: null, day: today >= from && today <= to ? today : from, time: '', title: '', live: '', rec: '' };
+    renderWeeks();
+  }
+  function csSave(btn) {
+    var d = cdraft; if (!d) return;
+    var live = d.live.trim(), list = recLinks(d.rec);
+    if (!d.day) return toast('Укажите дату занятия', 'err');
+    if ((live && !safeLink(live)) || list.some(function (u) { return !safeLink(u); })) return toast('Каждая ссылка должна начинаться с https://', 'err');
+    var row = { day: d.day, time: d.time.trim(), title: d.title.trim(), live_url: live, record_url: list.join('\n'), updated_at: new Date().toISOString() };
+    if (d.id) row.id = d.id;
+    btn.disabled = true;
+    sb.from('curator_sessions').upsert(row).select().single().then(function (r) {
+      btn.disabled = false;
+      if (r.error) return toast(/curator_sessions/.test(r.error.message || '') ? 'Нужно один раз выполнить код curator-sessions.sql в Supabase' : 'Не удалось сохранить: ' + r.error.message, 'err');
+      csessions = csessions.filter(function (x) { return x.id !== r.data.id; }).concat([r.data]);
+      cdraft = null; renderWeeks(); toast('Занятие сохранено');
+    });
+  }
+  function csDelete(id, btn) {
+    if (btn.dataset.arm !== '1') {
+      btn.dataset.arm = '1'; btn.textContent = 'Точно удалить?';
+      setTimeout(function () { if (btn.isConnected) { btn.dataset.arm = ''; btn.textContent = 'Удалить'; } }, 4000);
+      return;
+    }
+    btn.disabled = true;
+    sb.from('curator_sessions').delete().eq('id', id).then(function (r) {
+      if (r.error) { btn.disabled = false; return toast('Не удалось удалить: ' + r.error.message, 'err'); }
+      csessions = csessions.filter(function (x) { return x.id !== id; }); cdraft = null; renderWeeks(); toast('Занятие удалено');
+    });
+  }
+
   // Дата встречи: первый четверг недели программы
   function meetingDate(i) {
     var d = weekStart(i);
@@ -1158,6 +1252,11 @@
     }
     if (t.dataset.rmmedia != null) { pdraft.media.splice(Number(t.dataset.rmmedia), 1); pdraft.dirty = true; renderPractice(); return peMsg('Убрано. Нажмите «Сохранить».'); }
     if (t.id === 'me-save') return saveMeeting(t);
+    if (t.id === 'cs-add') return csStart(null);
+    if (t.id === 'cs-save') return csSave(t);
+    if (t.id === 'cs-cancel') { cdraft = null; return renderWeeks(); }
+    if (t.dataset.csedit) return csStart(t.dataset.csedit);
+    if (t.dataset.csdel) return csDelete(t.dataset.csdel, t);
     if (t.id === 'pe-save') return savePractice();
     if (t.id === 'pe-cancel') { pdraft = null; return renderPractice(); }
     if (t.dataset.pedit) {
@@ -1191,6 +1290,8 @@
   document.addEventListener('input', function (e) {
     var dr = e.target.getAttribute && e.target.getAttribute('data-draft');
     if (dr && pdraft) { pdraft[dr] = e.target.value; pdraft.dirty = true; return; }
+    var cd = e.target.getAttribute && e.target.getAttribute('data-cdraft');
+    if (cd && cdraft) { cdraft[cd] = e.target.value; return; }
     var md = e.target.getAttribute && e.target.getAttribute('data-mdraft');
     if (md && mdraft) { mdraft[md] = e.target.value; return; }
     var hd = e.target.getAttribute && e.target.getAttribute('data-hdraft');
@@ -1328,7 +1429,7 @@
         $('tabs').insertBefore(b, $('tabs').firstChild);
       } else if (!admin && pt) pt.remove();
       cur = currentWeek(S);
-      pdraft = null; openCards = {}; mdraft = null; loadPractices(); loadMeetings();
+      pdraft = null; openCards = {}; mdraft = null; cdraft = null; loadPractices(); loadMeetings(); loadCurator();
       screen('app');
       syncState('on', isNew ? (admin ? 'Готово' : 'Готово. Татьяна увидит ваши отметки') : savedLabel());
       if (isNew) flush();

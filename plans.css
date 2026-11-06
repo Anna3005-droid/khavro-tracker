@@ -36,3 +36,12 @@ select.plan-select.plan-none { color: var(--warn); }
 @media (min-width: 641px) { .meet { grid-template-columns: auto minmax(0, 1fr) auto; } .meet-acts { grid-column: auto; } }
 .admin-pill { color: var(--gold); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; vertical-align: middle; margin-left: 4px; }
 .guide-link { color: var(--gold); font-size: 14px; text-decoration: none; justify-self: center; }
+/* Занятия с кураторами */
+.meet.cs { margin-top: 14px; }
+.cs-list, .cs-full { grid-column: 1 / -1; display: grid; gap: 10px; }
+.cs-item { border-top: 1px solid var(--line-soft); padding-top: 12px; display: grid; gap: 6px; }
+.cs-item.past { opacity: .8; }
+.cs-when { margin: 0; font-weight: 500; }
+.cs-title { margin: 0; color: var(--muted); font-size: 14px; }
+.cs-admin { margin: 2px 0 0; }
+@media (min-width: 641px) { .meet.cs .cs-list, .meet.cs .cs-full { grid-column: 1 / -1; } }
