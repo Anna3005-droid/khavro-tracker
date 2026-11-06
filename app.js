@@ -967,15 +967,31 @@
     { url: 'https://practici-polyarnosti.vercel.app/', icon: 'yinyang', title: 'Проработка полярностей', tag: 'Протокол «Слив»',
       text: 'Пары полярностей порциями по 10–15, можно пропускать и добавлять свои личные полярности.' }
   ];
+  // Вкладка «Карты»: рандомайзер метафорических карт (отдельный сайт команды) открыт прямо внутри трекера.
+  // Ниже ссылки на остальные тренажёры.
+  var cardsFrame = null;
   function renderCards() {
-    var h = '<h2>Техники</h2><p class="note">Тренажёры для самостоятельной работы между встречами. Каждый открывается в новой вкладке, его можно добавить на главный экран телефона.</p>';
-    h += '<div class="tools">' + TOOLS.map(function (t) {
+    var box = $('cards');
+    if (!cardsFrame) {
+      cardsFrame = document.createElement('iframe');
+      cardsFrame.className = 'mak-frame';
+      cardsFrame.title = 'Метафорические карты';
+      cardsFrame.loading = 'lazy';
+      cardsFrame.allow = 'clipboard-write; fullscreen';
+      cardsFrame.src = TOOLS[0].url;
+    }
+    var h = '<div class="mak-head"><h2>Метафорические карты</h2><a class="mak-open" href="' + esc(TOOLS[0].url) + '" target="_blank" rel="noopener">Открыть отдельно</a></div>' +
+      '<p class="note">Для работы со вторичными выгодами. Сформулируйте запрос и вытяните карту.</p><div id="mak-slot"></div>';
+    h += '<h3 class="tools-h">Другие техники</h3><div class="tools">' + TOOLS.slice(1).map(function (t) {
       return '<a class="tool" href="' + esc(t.url) + '" target="_blank" rel="noopener">' +
         '<span class="ci">' + svg(t.icon) + '</span>' +
         '<span class="tool-body"><small>' + esc(t.tag) + '</small><b>' + esc(t.title) + '</b><span>' + esc(t.text) + '</span></span>' +
         '<span class="tool-go">Открыть<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></span></a>';
     }).join('') + '</div>';
-    $('cards').innerHTML = h;
+    // iframe переносим, а не создаём заново, чтобы расклад не сбрасывался при перерисовке
+    if (cardsFrame.parentNode) cardsFrame.parentNode.removeChild(cardsFrame);
+    box.innerHTML = h;
+    $('mak-slot').appendChild(cardsFrame);
   }
 
   // ---------- Навигация ----------

@@ -13,3 +13,12 @@
 .tool-go { grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: center; gap: 6px; color: var(--gold); font-weight: 500; font-size: 14px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; }
 .tool-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 @media (min-width: 641px) { .tool { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; } .tool-go { grid-column: auto; } }
+
+/* Рандомайзер карт внутри трекера */
+.mak-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.mak-open { color: var(--gold); font-size: 13px; text-decoration: none; border-bottom: 1px solid var(--line); }
+.mak-frame {
+  display: block; width: 100%; height: min(860px, calc(100dvh - 150px)); min-height: 560px;
+  border: 1px solid var(--line-soft); border-radius: var(--radius, 12px); background: var(--surface2); margin-bottom: 28px;
+}
+.tools-h { margin-top: 4px; }
