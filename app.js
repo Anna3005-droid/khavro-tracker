@@ -119,14 +119,14 @@
   var REC_OFF = ['group', 'chat', 'buddy'];           // групповая терапия, личный психотерапевт, бадди
   var LIVE_PRACTICES = ['2-1', '2-3', '3-1', '4-1', '8-1']; // практики вживую или в группе
   var PERSONAL_PRACTICES = ['5-1'];
-  // Убранные практики: их нет ни у участников, ни в подсчётах. В неделе 1 осталась только практика 01.
-  var HIDDEN_PRACTICES = ['1-2', '1-3'];
-  function practiceOn(week, num) { return HIDDEN_PRACTICES.indexOf(week + '-' + num) < 0; }
-  function slotsIn(week) { return [1, 2, 3].filter(function (n) { return practiceOn(week, n); }).length; }                   // «Точка сборки»: только «Глубина» и VIP
+  // Практик в неделе может быть от 0 до 3. Участники видят и считают только те, что администратор открыл.
+  function pOpen(week, num) { var p = practices[pkey(week, num)]; return !!(p && p.is_open); }
+  function openNums(week) { return [1, 2, 3].filter(function (n) { return pOpen(week, n); }); }
+  function practWord(n) { var a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'практика' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'практики' : 'практик'; }                   // «Точка сборки»: только «Глубина» и VIP
   function feature(name, s) { return !(isRec(s) && REC_OFF.indexOf(name) >= 0); }
   // 'ok' — практика доступна, 'live' — вживую/в группе (не для «Записей»), 'personal' — только «Глубина» и VIP
   function practiceAccess(week, num, s) {
-    if (!practiceOn(week, num)) return 'off';
+    if (!pOpen(week, num)) return 'off';
     var k = week + '-' + num;
     if (PERSONAL_PRACTICES.indexOf(k) >= 0 && !hasPersonal(s)) return 'personal';
     if (LIVE_PRACTICES.indexOf(k) >= 0 && isRec(s)) return 'live';
@@ -281,9 +281,10 @@
       (feature('chat') ? chkRow('w-chat', 'weeks.' + cur + '.chat', w.chat, 'Сообщение психотерапевту в чате', 'Личный психотерапевт отвечает с обратной связью', 'chat') : '') +
       (feature('buddy') ? chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди', '', 'buddy') : '') +
       '</div>' + (isRec() ? '<p class="scale">Групповая терапия, личный психотерапевт и бадди входят в тарифы «Поток», «Глубина» и VIP.</p>' : '') + '</div>';
-    h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + [0, 1, 2].filter(function (j) { return practiceOn(cur + 1, j + 1); }).map(function (j) {
-      var p = practices[pkey(cur + 1, j + 1)], def = defPractice(cur + 1, j + 1);
-      var title = esc((p && p.title) || (def ? def[2] : 'Практика ' + (j + 1)));
+    var wnums = openNums(cur + 1);
+    h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + (wnums.length ? '' : '<p class="scale" style="margin:0">Практики этой недели появятся после встречи с Татьяной.</p>') + wnums.map(function (n) {
+      var j = n - 1, p = practices[pkey(cur + 1, n)];
+      var title = esc((p && p.title) || 'Практика');
       var go = VIEW ? '' : '<button class="plink" type="button" data-gopr="' + j + '">Открыть практику →</button>';
       var acc = practiceAccess(cur + 1, j + 1);
       if (acc !== 'ok') return '<div class="crow has-ico"><span class="ci mute">' + svg('star') + '</span><span>' + title + '<small>' +
@@ -515,7 +516,7 @@
   }
 
   // ---------- Практики ----------
-  // В каждой неделе три практики. Каждая закрыта, пока администратор не откроет её после вебинара.
+  // В неделе от 0 до 3 практик. Каждая закрыта, пока администратор не откроет её после вебинара.
   var practices = {}, pdraft = null, practicesLoaded = false;
   function pkey(week, num) { return week + '-' + num; }
   function weekPractices(week) { return [1, 2, 3].map(function (n) { return practices[pkey(week, n)] || null; }); }
@@ -542,53 +543,12 @@
       if (r.error) syncState('err', 'Практики пока не подключены');
       if (tab === 'practice' && !(pdraft && pdraft.dirty)) renderPractice();
       if (tab === 'weeks') renderWeeks();
-      if (admin && !r.error) seedPractices();
     });
   }
 
   // Черновики практик всех модулей. Когда заходит администратор, недостающие
   // добавляются в базу сами (закрытыми). Уже написанные практики не трогаются.
-  var DEFAULT_PRACTICES = [
-    [1, 1, 'Письменный протокол скрытых выгод', 'Письменно · около 20 минут · 9 вопросов', 'Вы письменно отвечаете на девять вопросов протокола. Он помогает найти выгоду от текущего положения, которую вы раньше не замечали.'],
-    [1, 2, 'Диалог с частью, которая против роста', 'Трансовая техника · запись · 25 минут лёжа', 'Вы слушаете запись лёжа. В трансе вы встречаетесь с той частью себя, которая сопротивляется росту, и вступаете с ней в диалог.'],
-    [1, 3, 'Работа через образы', 'Образная работа', 'Когда часть не отвечает прямо, с ней работают через образы: психика показывает ответ картинкой, а не словами.'],
-    [2, 1, 'Протокол разрядки эпизода', 'Вживую · 30 минут', 'Находим момент, когда психика решила, что деньги опасны, и снимаем с него эмоциональный заряд.'],
-    [2, 2, 'Телесный протокол', '20 минут лёжа', 'То, что не уходит через разговор, снимается через тело.'],
-    [2, 3, 'Родовые эпизоды через поле', 'Групповая работа', 'Групповая работа с родовыми эпизодами через поле.'],
-    [3, 1, 'Протокол возврата', 'В группе · 40 минут', 'Разбираем, что вы несёте из родительской системы, и возвращаем то, что не ваше.'],
-    [3, 2, 'Внутренний диалог с родительской фигурой', 'Запись · когда будете готовы', 'Диалог с родительской фигурой внутри себя. Запись можно пройти тогда, когда почувствуете готовность.'],
-    [3, 3, 'Телесная практика на взрослую опору', '15 минут в день', 'Ежедневная телесная практика, которая выстраивает взрослую внутреннюю опору.'],
-    [4, 1, 'Диагностика по телу', 'Вживую', 'Через тело находим, какая потребность не закрылась и в каком возрасте это произошло.'],
-    [4, 2, 'Протокол застройки опоры', '15 минут ежедневно · 2 недели', 'Ежедневная практика, которая шаг за шагом выстраивает внутреннюю опору на месте дефицита.'],
-    [4, 3, 'Разбор компенсаций', 'Разбор', 'Смотрим, чем вы закрываете дыру вместо того, чтобы закрыть её по-настоящему.'],
-    [5, 1, 'Точка сборки', 'Личная работа с Татьяной', 'Индивидуальная работа с Татьяной.'],
-    [5, 2, 'Протокол на стыд', '30 минут', 'Находим эпизод стыда и снимаем с него эмоциональный заряд.'],
-    [5, 3, 'Выдерживание внимания', 'С нарастанием: от одного человека до зала', 'Учимся выдерживать внимание к себе, постепенно увеличивая аудиторию: от одного человека до целого зала.'],
-    [6, 1, 'Протокол переписывания убеждения', 'Один подход · одно убеждение', 'Берём фразу из вашей собственной речи, находим её корень и меняем убеждение.'],
-    [6, 2, 'Дневник речи', 'На неделю', 'Неделю вы записываете себя и слышите свои программы вслух.'],
-    [6, 3, 'Растяжка', 'Одно задание в неделю', 'Каждую неделю одно задание, которое расширяет вашу финансовую норму.'],
-    [7, 1, 'Карта цикла', 'Письменно · 40 минут', 'Выписываем все повторы и находим точку входа в цикл.'],
-    [7, 2, 'Техника выхода', '3 минуты', 'Применяется в тот момент, когда вы ловите себя на входе в старый круг.'],
-    [7, 3, 'Сборка новой картины будущего', '', 'Собираем новую картину вашего будущего.'],
-    [8, 1, 'Протокол сборки качеств новой версии себя', 'Вживую · 40 минут', 'Собираем качества новой версии себя.'],
-    [8, 2, 'ABC-шаги', 'Стратегия по шагам со сроками', 'Составляем стратегию по шагам: что вы делаете и в какие сроки.'],
-    [8, 3, 'Протокол принятия решения из взрослой позиции', '', 'Учимся принимать решения из взрослой позиции.']
-  ];
-  var seeded = false;
-  function seedPractices() {
-    if (seeded) return; seeded = true;
-    var rows = DEFAULT_PRACTICES.filter(function (d) { return practiceOn(d[0], d[1]) && !practices[pkey(d[0], d[1])]; }).map(function (d) {
-      return { week: d[0], num: d[1], title: d[2], meta: d[3], body: d[4] };
-    });
-    if (!rows.length) return;
-    sb.from('practices').upsert(rows, { onConflict: 'week,num', ignoreDuplicates: true }).select().then(function (r) {
-      if (r.error) return syncState('err', 'Не удалось добавить практики: ' + r.error.message);
-      (r.data || []).forEach(function (p) { practices[pkey(p.week, p.num)] = p; });
-      toast('Добавлены черновики практик: ' + rows.length);
-      if (tab === 'practice' && !(pdraft && pdraft.dirty)) renderPractice();
-      if (tab === 'weeks') renderWeeks();
-    });
-  }
+
 
   // Содержимое практики хранится в поле body как JSON: суть, для чего, шаги, материалы.
   // Старые практики (обычный текст в body) читаются как «для чего».
@@ -600,7 +560,6 @@
     if (p && safeLink(p.link) && !o.media.some(function (m) { return m.url === p.link; })) o.media.unshift({ url: p.link, name: 'Материалы практики' });
     return o;
   }
-  function defPractice(week, num) { return DEFAULT_PRACTICES.filter(function (d) { return d[0] === week && d[1] === num; })[0]; }
 
   function mediaKind(u) {
     u = String(u || '').toLowerCase().split('?')[0];
@@ -623,23 +582,31 @@
   var openCards = {};
   function renderPractice() {
     var wk = cur + 1, list = weekPractices(wk), w = S.weeks[cur], h = '';
-    var doneN = w.practices.filter(function (v, j) { return v && practiceAccess(wk, j + 1) === 'ok'; }).length, ofN = Math.max(1, practicesOpenTo(cur));
+    var doneN = w.practices.filter(function (v, j) { return v && practiceAccess(wk, j + 1) === 'ok'; }).length, ofN = practicesOpenTo(cur);
     h += '<div class="chips">' + MODULES.map(function (x, i) {
-      var n = weekPractices(i + 1).filter(function (p, j) { return p && p.is_open && practiceOn(i + 1, j + 1); }).length;
-      return '<button class="chip pchip' + (n ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + n + ' из ' + slotsIn(i + 1) + '</small></button>';
+      var n = openNums(i + 1).length;
+      return '<button class="chip pchip' + (n ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + (n ? n + ' ' + practWord(n) : 'скоро') + '</small></button>';
     }).join('') + '</div>';
     h += '<div class="mod-head"><h2>Модуль ' + wk + ' · <em>' + MODULES[cur][0] + '</em></h2>' +
-      '<div class="mod-prog"><span>Выполнено <b>' + doneN + '</b> из ' + ofN + '</span><span class="thin" role="img" aria-label="Выполнено ' + doneN + ' из ' + ofN + '"><i style="width:' + (doneN / ofN * 100).toFixed(0) + '%"></i></span></div></div>';
+      (ofN ? '<div class="mod-prog"><span>Выполнено <b>' + doneN + '</b> из ' + ofN + '</span><span class="thin" role="img" aria-label="Выполнено ' + doneN + ' из ' + ofN + '"><i style="width:' + (doneN / ofN * 100).toFixed(0) + '%"></i></span></div>' : '') + '</div>';
     mountCards();
     if (!practicesLoaded) { $('practice-body').innerHTML = h + '<p class="loading">Загружаем практики…</p>'; return; }
-    h += '<div class="plist">' + list.map(function (p, j) { return practiceOn(wk, j + 1) ? practiceCard(p, j) : ''; }).join('') + '</div>';
+    // Участник видит открытые практики; администратор — все созданные (и черновики) и кнопку «Добавить практику»
+    var shown = [1, 2, 3].filter(function (n) {
+      var p = practices[pkey(wk, n)];
+      return admin ? !!p || (pdraft && pdraft.week === wk && pdraft.num === n) : !!(p && p.is_open);
+    });
+    var free = [1, 2, 3].filter(function (n) { return !practices[pkey(wk, n)] && !(pdraft && pdraft.week === wk && pdraft.num === n); });
+    h += '<div class="plist">' + shown.map(function (n, k) { return practiceCard(list[n - 1], n - 1, k); }).join('') + '</div>';
+    if (!shown.length && !admin) h += '<div class="empty">Практики этой недели появятся после встречи с Татьяной.</div>';
+    if (admin && free.length) h += '<div class="actions"><button class="ghost gold" type="button" data-pedit="' + free[0] + '">+ Добавить практику</button></div>';
     $('practice-body').innerHTML = h;
   }
 
-  function practiceCard(p, j) {
-    var wk = cur + 1, num = j + 1, nn = '0' + num, key = pkey(wk, num), def = defPractice(wk, num);
+  function practiceCard(p, j, k) {
+    var wk = cur + 1, num = j + 1, nn = '0' + ((k == null ? j : k) + 1), key = pkey(wk, num);
     var open = !!(p && p.is_open), visible = !!(p && (open || admin));
-    var title = (p && p.title) || (def ? def[2] : 'Практика ' + num);
+    var title = (p && p.title) || (p ? 'Практика' : 'Новая практика');
     var isDone = !!S.weeks[cur].practices[j];
     var editing = admin && pdraft && pdraft.week === wk && pdraft.num === num;
     // «Точка сборки» (модуль 5, практика 1) — личная работа с Татьяной, только в «Глубине» и VIP
@@ -685,16 +652,30 @@
     }
     if (admin && !editing) {
       c += '<div class="actions pc-admin"><button class="ghost" type="button" data-pedit="' + num + '">Изменить</button>' +
-        '<button class="ghost gold" type="button" data-ptoggle="' + num + '">' + (open ? 'Закрыть от участников' : 'Открыть участникам') + '</button></div>';
+        '<button class="ghost gold" type="button" data-ptoggle="' + num + '">' + (open ? 'Закрыть от участников' : 'Открыть участникам') + '</button>' +
+        '<button class="ghost" type="button" data-pdel="' + num + '">Удалить</button></div>';
     }
     if (editing) c += practiceEditor();
     return c + '</div></article>';
   }
 
+  function deletePractice(num, btn) {
+    var key = pkey(cur + 1, num), p = practices[key]; if (!p || !admin) return;
+    if (btn.dataset.arm !== '1') {
+      btn.dataset.arm = '1'; btn.textContent = 'Нажмите ещё раз, чтобы удалить';
+      setTimeout(function () { if (btn.isConnected) { btn.dataset.arm = ''; btn.textContent = 'Удалить'; } }, 4000);
+      return;
+    }
+    btn.disabled = true;
+    sb.from('practices').delete().eq('week', p.week).eq('num', p.num).then(function (r) {
+      if (r.error) { btn.disabled = false; return toast('Не удалось удалить: ' + r.error.message, 'err'); }
+      delete practices[key]; delete openCards[key]; renderPractice(); toast('Практика удалена');
+    });
+  }
   function startEdit(num) {
-    var p = practices[pkey(cur + 1, num)] || {}, def = defPractice(cur + 1, num), o = unpack(p);
+    var p = practices[pkey(cur + 1, num)] || {}, o = unpack(p);
     pdraft = {
-      week: cur + 1, num: num, title: p.title || (def ? def[2] : ''), meta: p.meta || (def ? def[3] : ''),
+      week: cur + 1, num: num, title: p.title || '', meta: p.meta || '',
       summary: o.summary || '', purpose: o.purpose || '', stepsText: o.steps.join('\n'), media: o.media.slice(),
       images: (p.images || []).slice(), is_open: !!p.is_open, newName: '', newUrl: '', dirty: false
     };
@@ -808,8 +789,8 @@
   function helpCtx(h) {
     var s = 'Неделя ' + h.week;
     if (h.practice) {
-      var p = practices[pkey(h.week, h.practice)], def = defPractice(h.week, h.practice);
-      s += ' · Практика ' + h.practice + ': ' + ((p && p.title) || (def ? def[2] : ''));
+      var p = practices[pkey(h.week, h.practice)];
+      s += ' · Практика' + (p && p.title ? ': ' + p.title : ' ' + h.practice);
     }
     return s;
   }
@@ -1143,6 +1124,7 @@
       return startEdit(Number(t.dataset.pedit));
     }
     if (t.dataset.ptoggle) return togglePractice(Number(t.dataset.ptoggle), t);
+    if (t.dataset.pdel) return deletePractice(Number(t.dataset.pdel), t);
     if (t.dataset.rmimg != null) { pdraft.images.splice(Number(t.dataset.rmimg), 1); pdraft.dirty = true; renderPractice(); return peMsg('Картинка убрана. Нажмите «Сохранить».'); }
     if (t.classList.contains('fchip')) { feedWeek = Number(t.dataset.fw); return renderPeople(); }
     if (t.classList.contains('chip')) { cur = Number(t.dataset.w); return renderWeeks(); }
