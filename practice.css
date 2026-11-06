@@ -89,3 +89,4 @@
   .pc.done .pc-num { animation: glowNum 1.2s ease-out 1; }
 }
 @keyframes glowNum { 0% { opacity: .45; } 100% { opacity: .13; } }
+.pc-tool { display: inline-flex; justify-self: start; margin: 12px 0 4px; }

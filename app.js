@@ -579,6 +579,16 @@
     }).join('');
   }
 
+  // Практики, которые выполняются на отдельном сайте-тренажёре: «неделя-номер» -> адрес.
+  // Кнопка видна на карточке практики сразу, без раскрытия.
+  var PRACTICE_TOOLS = {
+    '1-1': 'https://vygody-eight.vercel.app/'
+  };
+  function practiceToolBtn(week, num) {
+    var u = safeLink(PRACTICE_TOOLS[week + '-' + num]);
+    return u ? '<a class="btnlink pc-tool" href="' + esc(u) + '" target="_blank" rel="noopener">Пройти практику ↗</a>' : '';
+  }
+
   var openCards = {};
   function renderPractice() {
     var wk = cur + 1, list = weekPractices(wk), w = S.weeks[cur], h = '';
@@ -634,7 +644,8 @@
       '<h3 class="pc-title">' + esc(title) + '</h3>' +
       (o.summary ? '<p class="pc-sum">' + esc(o.summary) + '</p>' : '') +
       (p.meta ? '<span class="pc-meta">' + esc(p.meta) + '</span>' : '') +
-      '<button class="pc-toggle" type="button" data-pcard="' + key + '" aria-expanded="' + expanded + '">' + (expanded ? 'Свернуть ↑' : 'Открыть практику →') + '</button>';
+      practiceToolBtn(wk, num) +
+      '<button class="pc-toggle" type="button" data-pcard="' + key + '" aria-expanded="' + expanded + '">' + (expanded ? 'Свернуть ↑' : (PRACTICE_TOOLS[wk + '-' + num] ? 'Описание →' : 'Открыть практику →')) + '</button>';
     if (expanded) {
       c += '<div class="pc-detail">';
       if (o.purpose && o.purpose.trim() !== (o.summary || '').trim()) c += '<h4>Для чего</h4><div class="prose">' + rich(o.purpose) + '</div>';
