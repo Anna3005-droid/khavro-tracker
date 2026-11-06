@@ -118,10 +118,15 @@
   // и психотехники, общий чат потока). Недоступно: всё живое и личное сопровождение.
   var REC_OFF = ['group', 'chat', 'buddy'];           // групповая терапия, личный психотерапевт, бадди
   var LIVE_PRACTICES = ['2-1', '2-3', '3-1', '4-1', '8-1']; // практики вживую или в группе
-  var PERSONAL_PRACTICES = ['5-1'];                   // «Точка сборки»: только «Глубина» и VIP
+  var PERSONAL_PRACTICES = ['5-1'];
+  // Убранные практики: их нет ни у участников, ни в подсчётах. В неделе 1 осталась только практика 01.
+  var HIDDEN_PRACTICES = ['1-2', '1-3'];
+  function practiceOn(week, num) { return HIDDEN_PRACTICES.indexOf(week + '-' + num) < 0; }
+  function slotsIn(week) { return [1, 2, 3].filter(function (n) { return practiceOn(week, n); }).length; }                   // «Точка сборки»: только «Глубина» и VIP
   function feature(name, s) { return !(isRec(s) && REC_OFF.indexOf(name) >= 0); }
   // 'ok' — практика доступна, 'live' — вживую/в группе (не для «Записей»), 'personal' — только «Глубина» и VIP
   function practiceAccess(week, num, s) {
+    if (!practiceOn(week, num)) return 'off';
     var k = week + '-' + num;
     if (PERSONAL_PRACTICES.indexOf(k) >= 0 && !hasPersonal(s)) return 'personal';
     if (LIVE_PRACTICES.indexOf(k) >= 0 && isRec(s)) return 'live';
@@ -276,7 +281,7 @@
       (feature('chat') ? chkRow('w-chat', 'weeks.' + cur + '.chat', w.chat, 'Сообщение психотерапевту в чате', 'Личный психотерапевт отвечает с обратной связью', 'chat') : '') +
       (feature('buddy') ? chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди', '', 'buddy') : '') +
       '</div>' + (isRec() ? '<p class="scale">Групповая терапия, личный психотерапевт и бадди входят в тарифы «Поток», «Глубина» и VIP.</p>' : '') + '</div>';
-    h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + [0, 1, 2].map(function (j) {
+    h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + [0, 1, 2].filter(function (j) { return practiceOn(cur + 1, j + 1); }).map(function (j) {
       var p = practices[pkey(cur + 1, j + 1)], def = defPractice(cur + 1, j + 1);
       var title = esc((p && p.title) || (def ? def[2] : 'Практика ' + (j + 1)));
       var go = VIEW ? '' : '<button class="plink" type="button" data-gopr="' + j + '">Открыть практику →</button>';
@@ -572,7 +577,7 @@
   var seeded = false;
   function seedPractices() {
     if (seeded) return; seeded = true;
-    var rows = DEFAULT_PRACTICES.filter(function (d) { return !practices[pkey(d[0], d[1])]; }).map(function (d) {
+    var rows = DEFAULT_PRACTICES.filter(function (d) { return practiceOn(d[0], d[1]) && !practices[pkey(d[0], d[1])]; }).map(function (d) {
       return { week: d[0], num: d[1], title: d[2], meta: d[3], body: d[4] };
     });
     if (!rows.length) return;
@@ -620,14 +625,14 @@
     var wk = cur + 1, list = weekPractices(wk), w = S.weeks[cur], h = '';
     var doneN = w.practices.filter(function (v, j) { return v && practiceAccess(wk, j + 1) === 'ok'; }).length, ofN = Math.max(1, practicesOpenTo(cur));
     h += '<div class="chips">' + MODULES.map(function (x, i) {
-      var n = weekPractices(i + 1).filter(function (p) { return p && p.is_open; }).length;
-      return '<button class="chip pchip' + (n ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + n + ' из 3</small></button>';
+      var n = weekPractices(i + 1).filter(function (p, j) { return p && p.is_open && practiceOn(i + 1, j + 1); }).length;
+      return '<button class="chip pchip' + (n ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + n + ' из ' + slotsIn(i + 1) + '</small></button>';
     }).join('') + '</div>';
     h += '<div class="mod-head"><h2>Модуль ' + wk + ' · <em>' + MODULES[cur][0] + '</em></h2>' +
       '<div class="mod-prog"><span>Выполнено <b>' + doneN + '</b> из ' + ofN + '</span><span class="thin" role="img" aria-label="Выполнено ' + doneN + ' из ' + ofN + '"><i style="width:' + (doneN / ofN * 100).toFixed(0) + '%"></i></span></div></div>';
     mountCards();
     if (!practicesLoaded) { $('practice-body').innerHTML = h + '<p class="loading">Загружаем практики…</p>'; return; }
-    h += '<div class="plist">' + list.map(function (p, j) { return practiceCard(p, j); }).join('') + '</div>';
+    h += '<div class="plist">' + list.map(function (p, j) { return practiceOn(wk, j + 1) ? practiceCard(p, j) : ''; }).join('') + '</div>';
     $('practice-body').innerHTML = h;
   }
 
