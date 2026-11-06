@@ -409,7 +409,7 @@
         var res = st.resStart == null ? '-' : st.resStart.toFixed(1) + (st.resEnd == null ? '' : ' → <span class="' + (st.resEnd >= st.resStart ? 'up' : 'down') + '">' + st.resEnd.toFixed(1) + '</span>');
         var sub = [tgNick(p.s.start.tg), p.email, p.id === me.id ? 'это вы' : ''].filter(Boolean).join(' · ');
         return '<tr class="p" tabindex="0" data-pid="' + esc(p.id) + '">' +
-          '<td class="nm"><b>' + esc(pname(p)) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</td>' +
+          '<td class="nm"><b>' + esc(pname(p)) + (adminIds[p.id] ? ' <span class="pill admin-pill">админ</span>' : '') + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</td>' +
           '<td><select class="plan-select plan-' + (planId(p.s) || 'none') + '" data-rowplan="' + esc(p.id) + '" aria-label="Тариф участника">' +
             (planId(p.s) ? '' : '<option value="">не выбран</option>') +
             PLANS.map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === planId(p.s) ? ' selected' : '') + '>' + pl.name + '</option>'; }).join('') +
@@ -445,7 +445,18 @@
     $('people').innerHTML = h;
   }
 
+  // Кто из участников администратор. Нужен один раз выполненный supabase/admins-read.sql;
+  // без него список просто пустой и отметок нет.
+  var adminIds = {};
+  function loadAdmins() {
+    return sb.from('admins').select('user_id').then(function (r) {
+      var next = {};
+      (r.data || []).forEach(function (a) { next[a.user_id] = true; });
+      adminIds = next;
+    }, function () {});
+  }
   function loadPeople() {
+    loadAdmins().then(function () { if (tab === 'people' && !VIEW) { var ae = document.activeElement; if (!(ae && ae.closest && ae.closest('#people input, #people textarea'))) render(); } });
     return sb.from('trackers').select('user_id,email,data,updated_at').then(function (r) {
       if (r.error) { syncState('err', 'Не удалось загрузить участников: ' + r.error.message); return; }
       people = (r.data || []).filter(function (row) { return valid(row.data); }).map(function (row) {
