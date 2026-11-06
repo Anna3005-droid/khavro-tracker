@@ -540,14 +540,33 @@
       practices = {};
       (r.data || []).forEach(function (p) { practices[pkey(p.week, p.num)] = p; });
       practicesLoaded = true;
+      if (!r.error) fixPracticeTexts();
       if (r.error) syncState('err', 'Практики пока не подключены');
       if (tab === 'practice' && !(pdraft && pdraft.dirty)) renderPractice();
       if (tab === 'weeks') renderWeeks();
     });
   }
 
-  // Черновики практик всех модулей. Когда заходит администратор, недостающие
-  // добавляются в базу сами (закрытыми). Уже написанные практики не трогаются.
+  // Разовые исправления текстов, которые сайт когда-то сам записал в базу черновиками.
+  // Участники сразу видят исправленный текст, а когда заходит администратор, правка сохраняется в базе.
+  var TEXT_FIXES = [
+    { key: '1-1', from: '9 вопросов', to: '3 вопроса' },
+    { key: '1-1', from: 'девять вопросов', to: 'три вопроса' }
+  ];
+  function fixPracticeTexts() {
+    var changed = {};
+    TEXT_FIXES.forEach(function (f) {
+      var p = practices[f.key]; if (!p) return;
+      ['title', 'meta', 'body'].forEach(function (k) {
+        if (typeof p[k] === 'string' && p[k].indexOf(f.from) >= 0) { p[k] = p[k].split(f.from).join(f.to); changed[f.key] = true; }
+      });
+    });
+    if (!admin) return;
+    Object.keys(changed).forEach(function (key) {
+      var p = practices[key];
+      sb.from('practices').update({ title: p.title, meta: p.meta, body: p.body }).eq('week', p.week).eq('num', p.num).then(function () {});
+    });
+  }
 
 
   // Содержимое практики хранится в поле body как JSON: суть, для чего, шаги, материалы.
