@@ -232,7 +232,7 @@
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
       '<label class="f" for="s-tg">Ник в Telegram<input type="text" id="s-tg" data-bind="start.tg" value="' + esc(v.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"' + dis() + '></label>' +
       '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label></div></div>';
-    if (VIEW && admin) h += planBlock(); // участникам тарифы не показываем: это платформа, а не витрина
+    h += planBlock();
     h += '<div class="block"><h3>Доход на старте</h3><div class="row">' +
       '<label class="f" for="s-income">Ваш доход в месяц сейчас<input type="number" inputmode="numeric" id="s-income" data-bind="start.income" value="' + esc(v.income) + '" placeholder="0"' + dis() + '></label>' +
       '<label class="f" for="s-cur">Валюта<select id="s-cur" data-bind="start.cur"' + dis() + '>' + ['€', '$', '₴'].map(function (c) { return '<option' + (v.cur === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label></div>' +
@@ -257,11 +257,10 @@
     h += '<div class="plans">' + PLANS.map(function (p) {
       var on = p.id === cur0;
       return '<button class="plan' + (on ? ' on' : '') + '" type="button" ' + attr + '="' + p.id + '" aria-pressed="' + on + '"' + (canChange ? '' : ' disabled') + '>' +
-        '<b>' + p.name + '</b>' + (p.main ? '<small>основной</small>' : '') + '</button>';
+        '<b>' + p.name + '</b></button>';
     }).join('') + '</div>';
     if (cur0 && !canChange) h += '<p class="scale" style="margin:10px 0 0">Тариф меняет администратор. Если выбрали не тот, напишите в чат программы.</p>';
-    var sel = plan();
-    if (sel) h += '<ul class="plan-inc">' + sel.inc.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
+    // Состав тарифов участникам не показываем: трекер — платформа, а не описание тарифов
     return h + '</div>';
   }
   function renderWeeks() {
@@ -269,7 +268,7 @@
     h += '<div class="chips" id="chips">' + MODULES.map(function (x, i) { return '<button class="chip" type="button" data-w="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>неделя</small></button>'; }).join('') + '</div>';
     var rng = weekRange(cur);
     h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
-    if (false) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Выберите ваш тариф</b><small>От тарифа зависит, что показывает трекер.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
+    if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Укажите ваш тариф</b><small>Это займёт секунду.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
     h += meetingBlock();
     h += curatorBlock();
     h += pushBlock();
@@ -1496,7 +1495,7 @@
     $('a-signup').setAttribute('aria-selected', String(m === 'signup'));
     $('a-name-wrap').hidden = m !== 'signup';
     $('a-tg-wrap').hidden = m !== 'signup';
-    $('a-plan-wrap').hidden = true; // тариф участнику ставит администратор
+    $('a-plan-wrap').hidden = m !== 'signup';
     $('a-pass-wrap').hidden = m === 'forgot';
     $('a-forgot').hidden = m !== 'login';
     $('a-pass').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
@@ -1525,6 +1524,7 @@
     if (mode !== 'forgot' && pass.length < 6) return authMsg('Пароль должен быть не короче 6 символов.', 'err');
     if (mode === 'signup' && !$('a-name').value.trim()) return authMsg('Напишите, как вас зовут.', 'err');
     if (mode === 'signup' && !tgNick($('a-tg').value)) return authMsg('Напишите ник в Telegram, например @anna_ivanova. Его можно посмотреть в Telegram: Настройки, затем Имя пользователя.', 'err');
+    if (mode === 'signup' && !$('a-plan').value) return authMsg('Выберите ваш тариф.', 'err');
     btn.disabled = true; authMsg('Секунду…');
     var p;
     if (mode === 'login') p = sb.auth.signInWithPassword({ email: email, password: pass });
