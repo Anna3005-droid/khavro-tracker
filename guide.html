@@ -15,6 +15,7 @@
   --bg: #031426; --surface: #0A2140; --ink: #FFFFFF; --muted: #8FA3C0; --gold: #1A84FF;
   --line: rgba(26, 132, 255, 0.32); --line-soft: rgba(255, 255, 255, 0.12);
   --display: "Cormorant Garamond", Georgia, serif; --body: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --acc2: #E9B95F;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -24,19 +25,19 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(-
 .top { display: flex; justify-content: space-between; font-family: var(--display); letter-spacing: .18em; color: var(--gold); font-size: 15px; }
 .by { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 28px 0 10px; }
 h1 { font-family: var(--display); font-weight: 500; font-size: clamp(36px, 9vw, 52px); line-height: 1.05; margin: 0 0 14px; }
-h1 em { color: var(--gold); }
+h1 em { color: var(--acc2); }
 .lead { color: var(--muted); margin: 0 0 18px; }
 .cta { display: inline-block; background: var(--gold); color: #fff; text-decoration: none; font-weight: 600; padding: 13px 22px; border-radius: 999px; }
 .toc { list-style: none; padding: 0; margin: 26px 0 8px; display: grid; gap: 6px; counter-reset: t; }
 .toc a { color: var(--ink); text-decoration: none; display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
-.toc a::before { counter-increment: t; content: counter(t); font-family: var(--display); color: var(--gold); font-size: 22px; min-width: 22px; }
+.toc a::before { counter-increment: t; content: counter(t); font-family: var(--display); color: var(--acc2); font-size: 22px; min-width: 22px; }
 section { margin-top: 48px; scroll-margin-top: 16px; }
-.step { font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); margin: 0 0 6px; }
+.step { font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--acc2); margin: 0 0 6px; }
 h2 { font-family: var(--display); font-weight: 500; font-size: clamp(28px, 7vw, 36px); line-height: 1.1; margin: 0 0 12px; }
 p { margin: 0 0 12px; }
 ul, ol { margin: 0 0 14px; padding-left: 22px; }
 li { margin-bottom: 6px; }
-li::marker { color: var(--gold); }
+li::marker { color: var(--acc2); }
 b { font-weight: 600; }
 figure { margin: 16px 0 18px; }
 figure img { display: block; width: 100%; max-width: 390px; height: auto; margin: 0 auto; border-radius: 16px; border: 1px solid var(--line-soft); }
@@ -121,7 +122,7 @@ figure.small img { max-width: 390px; }
     <figure><img src="guide/02-week-top.jpg" alt="Верх недели: приветствие, кольцо прогресса, выбор недели и блок встречи с кнопками эфира и записи" width="390" height="700" loading="lazy"></figure>
 
     <p>Ниже отмечайте галочками, что сделали за неделю:</p>
-    <figure><img src="guide/03-week-checks.jpg" alt="Список на этой неделе: встреча с Татьяной, сообщение психотерапевту, созвон с бадди" width="336" height="336" loading="lazy"></figure>
+    <figure><img src="guide/03-week-checks.jpg" alt="Список на этой неделе: встреча с Татьяной, занятие с куратором, созвон с бадди" width="390" height="301" loading="lazy"></figure>
 
     <p><b>Протокол для подсознания во сне</b> — отмечайте каждую ночь, когда слушали протокол перед сном. Первая неделя начинается с четверга, дальше недели идут с понедельника по воскресенье.</p>
     <figure><img src="guide/04-nights.jpg" alt="Протокол во сне: отметки по ночам с датами" width="390" height="270" loading="lazy"></figure>
@@ -149,7 +150,7 @@ figure.small img { max-width: 390px; }
     <figure><img src="guide/07-practice-done.jpg" alt="Поле для заметок после практики и кнопка Отметить выполненной" width="390" height="214" loading="lazy"></figure>
     <p>Ниже, в блоке <b>«Техники»</b>, — тренажёры для самостоятельной работы между встречами: метафорические карты, проработка эмоций и полярностей. Каждый открывается отдельно.</p>
     <figure><img src="guide/08-tools.jpg" alt="Блок Техники с карточкой Метафорические карты и кнопкой Открыть" width="390" height="454" loading="lazy"></figure>
-    <div class="tip"><b>Нужна помощь?</b> Раскройте практику: внизу есть кнопка «Написать куратору об этой практике», куратор свяжется с вами в Telegram.</div>
+    <div class="tip"><b>Есть вопрос?</b> Пишите в общий чат программы — там вам ответят Татьяна и кураторы.</div>
   </section>
 
   <section id="total">

@@ -52,7 +52,7 @@
   function dis() { return VIEW ? ' disabled' : ''; }
   function money(n, c) { return n == null ? '-' : Math.round(n).toLocaleString('ru-RU') + ' ' + (c || D().start.cur); }
 
-  function blankWeek() { return { meet: 0, group: 0, chat: 0, buddy: 0, practices: [0, 0, 0], pnotes: ['', '', ''], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, insight: '', action: '', recap: '' }; }
+  function blankWeek() { return { meet: 0, cur: 0, buddy: 0, practices: [0, 0, 0], pnotes: ['', '', ''], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, insight: '', action: '', recap: '' }; }
   function blank() {
     var w = []; for (var i = 0; i < 8; i++) w.push(blankWeek());
     return { start: { name: '', cur: '€', date: DEFAULT_START, income: '', sit: [0, 0, 0, 0, 0], res: [0, 0, 0, 0, 0] }, weeks: w, end: { income: '', res: [0, 0, 0, 0, 0] }, cards: [] };
@@ -70,6 +70,7 @@
     if (!Array.isArray(o.cards)) o.cards = [];
     o.weeks.forEach(function (w) {
       if (!Array.isArray(w.practices)) w.practices = [0, 0, 0];
+      if (w.cur == null) w.cur = 0; // занятие с куратором (вместо групповой терапии и чата)
       if (!Array.isArray(w.pnotes)) w.pnotes = ['', '', ''];
       delete w.practice; delete w.income;
     });
@@ -116,7 +117,7 @@
   function hasPersonal(s) { var id = planId(s); return id === 'deep' || id === 'vip' || id === ''; }
   // Что доступно в тарифе «Записи» (по описанию программы: занятия в записи, базовые упражнения
   // и психотехники, общий чат потока). Недоступно: всё живое и личное сопровождение.
-  var REC_OFF = ['group', 'chat', 'buddy'];           // групповая терапия, личный психотерапевт, бадди
+  var REC_OFF = ['buddy'];                            // бадди нет в тарифе «Записи»
   var LIVE_PRACTICES = ['2-1', '2-3', '3-1', '4-1', '8-1']; // практики вживую или в группе
   var PERSONAL_PRACTICES = ['5-1'];
   // Практик в неделе может быть от 0 до 3. Участники видят и считают только те, что администратор открыл.
@@ -135,12 +136,12 @@
   function practicesOpenTo(i, s) { return [1, 2, 3].filter(function (n) { return practiceAccess(i + 1, n, s) === 'ok'; }).length; }
   // Пункты недели, которые считаются в кольце прогресса, зависят от тарифа
   function maxDone(s, i) {
-    return 1 + (feature('group', s) ? 1 : 0) + (feature('chat', s) ? 1 : 0) + (feature('buddy', s) ? 1 : 0) +
+    return 1 + 1 + (feature('buddy', s) ? 1 : 0) +
       (isVip(s) ? 1 : 0) + practicesOpenTo(i, s) + weekLen(i, s);
   }
   function done(w, s, i) {
     var pr = (w.practices || []).filter(function (v, j) { return v && practiceAccess(i + 1, j + 1, s) === 'ok'; }).length;
-    return w.meet + (feature('group', s) ? w.group : 0) + (feature('chat', s) ? w.chat : 0) + (feature('buddy', s) ? w.buddy : 0) +
+    return w.meet + (w.cur || 0) + (feature('buddy', s) ? w.buddy : 0) +
       pr + sum(w.nights.slice(0, weekLen(i, s))) + (isVip(s) ? (w.vip || 0) : 0);
   }
   function planPill(s) { var p = plan(s); return p ? '<span class="pill plan-' + p.id + '">' + p.name + '</span>' : '<span class="pill mute">тариф не выбран</span>'; }
@@ -155,7 +156,7 @@
       incStart: a, incEnd: b,
       incPct: a != null && b != null && a > 0 ? Math.round((b - a) / a * 100) : null,
       meets: sum(W.map(function (w) { return w.meet; })),
-      groups: sum(W.map(function (w) { return w.group; })),
+      curs: sum(W.map(function (w) { return w.cur || 0; })),
       nights: sum(W.map(function (w, i) { return sum(w.nights.slice(0, weekLen(i, s))); })),
       practices: sum(W.map(function (w, i) { return (w.practices || []).filter(function (v, j) { return v && practiceAccess(i + 1, j + 1, s) === 'ok'; }).length; })),
       practicesMax: sum(W.map(function (w, i) { return practicesOpenTo(i, s); })),
@@ -278,8 +279,7 @@
       (isRec() ? chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Запись встречи с Татьяной', 'Доступна через сутки после эфира', 'meet')
         : chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной', '', 'meet')) +
       (isVip() ? chkRow('w-vip', 'weeks.' + cur + '.vip', w.vip, 'Индивидуальная сессия с Татьяной', '4 сессии за программу', 'star') : '') +
-      (feature('group') ? chkRow('w-group', 'weeks.' + cur + '.group', w.group, 'Групповая терапия', '', 'group') : '') +
-      (feature('chat') ? chkRow('w-chat', 'weeks.' + cur + '.chat', w.chat, 'Сообщение психотерапевту в чате', 'Личный психотерапевт отвечает с обратной связью', 'chat') : '') +
+      chkRow('w-cur', 'weeks.' + cur + '.cur', w.cur, 'Занятие с куратором', '', 'group') +
       (feature('buddy') ? chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди', '', 'buddy') : '') +
       '</div>' + '</div>';
     var wnums = openNums(cur + 1).filter(function (n) { return practiceAccess(cur + 1, n) === 'ok'; });
@@ -324,7 +324,7 @@
     h += '<h2>Итоги программы</h2><p class="note">Встречи, практики и состояние собираются из недель. Доход вы записываете здесь в конце программы.</p>';
     h += '<div class="kpis">' +
       '<div><span>' + (isRec(s) ? 'Записи встреч' : 'Встречи с Татьяной') + '</span><strong>' + st.meets + ' из 8</strong></div>' +
-      (feature('group', s) ? '<div><span>Групповые терапии</span><strong>' + st.groups + ' из 8</strong></div>' : '') +
+      '<div><span>Занятия с куратором</span><strong>' + st.curs + ' из 8</strong></div>' +
       '<div><span>Практики</span><strong>' + st.practices + ' из ' + st.practicesMax + '</strong></div>' +
       '<div><span>Ночей с протоколом</span><strong>' + st.nights + ' из ' + totalNights(s) + '</strong></div></div>';
     h += '<div class="income"><h3>Доход: старт и итог</h3>' +
@@ -402,7 +402,7 @@
     }).join('') + (noPlan ? '<span class="pill mute">не выбрали: ' + noPlan + '</span>' : '') + '</div>';
 
     h += '<h3>Каждый участник</h3><div class="tablewrap"><table><thead><tr>' +
-      '<th>Участник</th><th>Тариф</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Группы</th><th>Ночи</th><th>Практики</th><th>Доход в месяц: старт → итог</th><th>Состояние</th><th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
+      '<th>Участник</th><th>Тариф</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Кураторы</th><th>Ночи</th><th>Практики</th><th>Доход в месяц: старт → итог</th><th>Состояние</th><th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
       '</tr></thead><tbody>' + all.map(function (x) {
         var p = x.p, st = x.st, c = p.s.start.cur;
         var mini = '<span class="mini" aria-hidden="true">' + p.s.weeks.map(function (w) { return '<i class="' + (w.meet ? 'y' : '') + '"></i>'; }).join('') + '</span> ';
@@ -417,17 +417,17 @@
             PLANS.map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === planId(p.s) ? ' selected' : '') + '>' + pl.name + '</option>'; }).join('') +
           '</select></td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
-          '<td>' + mini + st.meets + '</td><td>' + st.groups + '</td><td>' + st.nights + '</td><td>' + st.practices + '</td>' +
+          '<td>' + mini + st.meets + '</td><td>' + st.curs + '</td><td>' + st.nights + '</td><td>' + st.practices + '</td>' +
           '<td>' + m2 + '</td><td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td><td>' + res + '</td>' +
           '<td>' + (p.id !== me.id ? '<button class="ghost danger small" type="button" data-delp="' + esc(p.id) + '">Удалить</button>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
 
-    h += '<h3>Посещаемость по неделям</h3><div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Неделя</th><th>Встреча с Татьяной</th><th>Групповая терапия</th><th>Чат с психотерапевтом</th><th>Бадди</th><th>Практики выполнены</th><th>Ночей в среднем</th></tr></thead><tbody>' +
+    h += '<h3>Посещаемость по неделям</h3><div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Неделя</th><th>Встреча с Татьяной</th><th>Занятие с куратором</th><th>Бадди</th><th>Практики выполнены</th><th>Ночей в среднем</th></tr></thead><tbody>' +
       MODULES.map(function (m, i) {
         var ws = P.map(function (p) { return p.s.weeks[i]; });
         var c = function (k) { return ws.filter(function (w) { return w[k]; }).length + ' из ' + N; };
         var n = avg(ws.map(function (w) { return sum(w.nights); }));
-        return '<tr><td>' + (i + 1) + (i === wk ? ' <span class="pill good">сейчас</span>' : '') + '</td><td>' + c('meet') + '</td><td>' + c('group') + '</td><td>' + c('chat') + '</td><td>' + c('buddy') + '</td><td>' + sum(ws.map(function (w) { return sum(w.practices); })) + ' из ' + N * 3 + '</td><td>' + (n == null ? '-' : n.toFixed(1)) + '</td></tr>';
+        return '<tr><td>' + (i + 1) + (i === wk ? ' <span class="pill good">сейчас</span>' : '') + '</td><td>' + c('meet') + '</td><td>' + c('cur') + '</td><td>' + c('buddy') + '</td><td>' + sum(ws.map(function (w) { return sum(w.practices); })) + ' из ' + N * 3 + '</td><td>' + (n == null ? '-' : n.toFixed(1)) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
 
     h += '<h3>С чем пришли участники</h3><div class="hbars">' + SITUATIONS.map(function (t, i) {
@@ -999,6 +999,8 @@
   // Срок ответа куратора, который видят участники
   var HELP_RESPONSE = 'в течение 24 часов';
   function helpBox(key) {
+    // Кнопку «Нужен куратор» убрали: вопросы участники задают в общем чате
+    return '';
     if (VIEW) return '';
     var isPractice = key.charAt(0) === 'p', h = '';
     // В тарифе «Записи» куратора нет: вопросы задают в общем чате потока
@@ -1444,7 +1446,7 @@
     var p = e.target.getAttribute && e.target.getAttribute('data-bind'); if (!p) return;
     set(p, e.target.type === 'checkbox' ? (e.target.checked ? 1 : 0) : e.target.value);
     touch();
-    if (/^weeks\.\d+\.(meet|group|chat|buddy|nights|practices|vip)/.test(p)) updDone();
+    if (/^weeks\.\d+\.(meet|cur|buddy|nights|practices|vip)/.test(p)) updDone();
     if (p === 'start.name' || p === 'start.date') updHead();
     if (p === 'end.income') updIncome();
   });

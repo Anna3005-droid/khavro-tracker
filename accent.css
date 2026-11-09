@@ -1,0 +1,14 @@
+/* Второй цвет — золото: всё, что участник сделал и чего достиг (галочки, ночи, кольца прогресса),
+   подписи разделов и курсив в заголовках. Основной цвет кнопок и вкладок остаётся синим. */
+:root { --acc2: #E9B95F; --acc2-glow: rgba(233, 185, 95, 0.55); --on-acc2: #1A1206; }
+h3, .pc-eyebrow, .pc-detail h4, .pnum { color: var(--acc2); }
+h3::before { background: var(--acc2); }
+h1 em, h2 em, .mod-head h2 em, .ah-title em { color: var(--acc2); }
+.chk:checked, .chk.moon:checked, .dot[aria-pressed="true"] { background: var(--acc2); border-color: var(--acc2); }
+.chk.moon:checked { box-shadow: 0 0 14px var(--acc2-glow); }
+.chk:checked::after { border-color: var(--on-acc2); }
+.ring .rf { stroke: var(--acc2); }
+.thin i, .bar { background: var(--acc2); }
+.pc-done { background: var(--acc2); color: var(--on-acc2); }
+.orn { color: var(--acc2); }
+.sheet::before, .sheet::after { border-color: var(--acc2); }
