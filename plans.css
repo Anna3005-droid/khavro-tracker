@@ -54,3 +54,4 @@ select.plan-select.plan-none { color: var(--warn); }
 .daily-head b { font-weight: 500; }
 .daily .chk { width: 30px; height: 30px; border-radius: 50%; }
 .daily-head .plink { text-decoration: none; margin: 0; }
+.field-hint { margin: -2px 0 10px; font-size: 13px; line-height: 1.45; color: var(--muted); }
