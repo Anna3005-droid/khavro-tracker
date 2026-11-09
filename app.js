@@ -133,16 +133,20 @@
     if (LIVE_PRACTICES.indexOf(k) >= 0 && isRec(s)) return 'live';
     return 'ok';
   }
+  // «Протокол для подсознания во сне» пока скрыт: решают, давать ли его. Вернуть — поставить true.
+  var SHOW_NIGHTS = false;
+  // Оценка «Состояние: энергия и ясность» тоже скрыта. Вернуть — поставить true.
+  var SHOW_STATE = false;
   function practicesOpenTo(i, s) { return [1, 2, 3].filter(function (n) { return practiceAccess(i + 1, n, s) === 'ok'; }).length; }
   // Пункты недели, которые считаются в кольце прогресса, зависят от тарифа
   function maxDone(s, i) {
     return 1 + 1 + (feature('buddy', s) ? 1 : 0) +
-      (isVip(s) ? 1 : 0) + practicesOpenTo(i, s) + weekLen(i, s);
+      (isVip(s) ? 1 : 0) + practicesOpenTo(i, s) + (SHOW_NIGHTS ? weekLen(i, s) : 0);
   }
   function done(w, s, i) {
     var pr = (w.practices || []).filter(function (v, j) { return v && practiceAccess(i + 1, j + 1, s) === 'ok'; }).length;
     return w.meet + (w.cur || 0) + (feature('buddy', s) ? w.buddy : 0) +
-      pr + sum(w.nights.slice(0, weekLen(i, s))) + (isVip(s) ? (w.vip || 0) : 0);
+      pr + (SHOW_NIGHTS ? sum(w.nights.slice(0, weekLen(i, s))) : 0) + (isVip(s) ? (w.vip || 0) : 0);
   }
   function planPill(s) { var p = plan(s); return p ? '<span class="pill plan-' + p.id + '">' + p.name + '</span>' : '<span class="pill mute">тариф не выбран</span>'; }
 
@@ -294,13 +298,13 @@
       return '<div class="crow has-ico"><span class="ci mute">' + svg('lock') + '</span><span>' + title + '<small>Станет доступна после встречи с Татьяной</small></span><span class="pill mute">закрыта</span></div>';
     }).join('') + '</div></div>';
     var ws0 = weekStart(cur), nn = [0, 1, 2, 3, 4, 5, 6].slice(0, weekLen(cur));
-    h += '<div class="block"><h3>Протокол для подсознания во сне</h3><div class="nights">' + nn.map(function (n) {
+    if (SHOW_NIGHTS) h += '<div class="block"><h3>Протокол для подсознания во сне</h3><div class="nights">' + nn.map(function (n) {
       var day = ws0 ? addDays(ws0, n) : null;
       var wd = day ? day.toLocaleDateString('ru-RU', { weekday: 'short' }) : 'ночь';
       return '<label class="night" for="w-n' + n + '"><b>' + wd + '</b><input class="chk moon" type="checkbox" id="w-n' + n + '" data-bind="weeks.' + cur + '.nights.' + n + '"' + (w.nights[n] ? ' checked' : '') + dis() + ' aria-label="' + (day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Ночь ' + (n + 1)) + '">' + (day ? day.getDate() : n + 1) + '</label>';
     }).join('') + '</div><p class="scale">Отмечайте ночи, когда вы слушали протокол перед сном.</p></div>';
     h += '<div class="block"><h3>Действие недели</h3><input type="text" id="w-action" data-bind="weeks.' + cur + '.action" value="' + esc(w.action) + '" placeholder="Один шаг, который приведёт к деньгам, а не только к инсайту"' + dis() + '></div>';
-    h += '<div class="block"><h3>Состояние: энергия и ясность</h3><div class="scales">' +
+    if (SHOW_STATE) h += '<div class="block"><h3>Состояние: энергия и ясность</h3><div class="scales">' +
       '<div class="week"><span>В начале недели</span>' + dotsRow('weeks.' + cur + '.s0', w.s0) + '</div>' +
       '<div class="week"><span>В конце недели</span>' + dotsRow('weeks.' + cur + '.s1', w.s1) + '</div>' +
       '</div><p class="scale">От 1, когда нет сил, до 5, когда ясно и легко.</p></div>';
@@ -321,16 +325,16 @@
 
   function renderTotal() {
     var s = D(), W = s.weeks, st = stats(s), h = '';
-    h += '<h2>Итоги программы</h2><p class="note">Встречи, практики и состояние собираются из недель. Доход вы записываете здесь в конце программы.</p>';
+    h += '<h2>Итоги программы</h2><p class="note">Встречи и практики собираются из недель. Доход вы записываете здесь в конце программы.</p>';
     h += '<div class="kpis">' +
       '<div><span>' + (isRec(s) ? 'Записи встреч' : 'Встречи с Татьяной') + '</span><strong>' + st.meets + ' из 8</strong></div>' +
       '<div><span>Занятия с куратором</span><strong>' + st.curs + ' из 8</strong></div>' +
       '<div><span>Практики</span><strong>' + st.practices + ' из ' + st.practicesMax + '</strong></div>' +
-      '<div><span>Ночей с протоколом</span><strong>' + st.nights + ' из ' + totalNights(s) + '</strong></div></div>';
+      (SHOW_NIGHTS ? '<div><span>Ночей с протоколом</span><strong>' + st.nights + ' из ' + totalNights(s) + '</strong></div>' : '') + '</div>';
     h += '<div class="income"><h3>Доход: старт и итог</h3>' +
       '<div class="row"><label class="f" for="e-income">Ваш доход в месяц в конце программы, ' + esc(s.start.cur) + '<input type="number" inputmode="numeric" id="e-income" data-bind="end.income" value="' + esc(s.end.income) + '" placeholder="0"' + dis() + '></label></div>' +
       '<div id="inc-cmp"></div></div>';
-    h += '<h3 style="margin-top:26px">Состояние по неделям</h3><div class="statebar">' + W.map(function (w, i) {
+    if (SHOW_STATE) h += '<h3 style="margin-top:26px">Состояние по неделям</h3><div class="statebar">' + W.map(function (w, i) {
       var a = [w.s0, w.s1].filter(Boolean); a = a.length ? sum(a) / a.length : 0;
       return '<i title="Неделя ' + (i + 1) + ': ' + (a ? a.toFixed(1) + ' из 5' : 'нет данных') + '" style="opacity:' + (a ? (0.2 + a / 5 * 0.8).toFixed(2) : 0.08) + '"></i>';
     }).join('') + '</div><p class="legend">Чем ярче, тем выше среднее состояние недели.</p>';
@@ -392,8 +396,8 @@
       '<div><span>Участников</span><strong>' + N + '</strong></div>' +
       '<div><span>Активны за 7 дней</span><strong>' + active + ' из ' + N + '</strong></div>' +
       '<div><span>Посещают встречи</span><strong>' + (meetPct == null ? '-' : Math.round(meetPct * 100) + '%') + '</strong></div>' +
-      '<div><span>Ночей протокола в неделю</span><strong>' + (nightsAvg == null ? '-' : nightsAvg.toFixed(1) + ' из 7') + '</strong></div>' +
-      '<div><span>Среднее состояние</span><strong>' + (stAvg == null ? '-' : stAvg.toFixed(1) + ' из 5') + '</strong></div></div>';
+      (SHOW_NIGHTS ? '<div><span>Ночей протокола в неделю</span><strong>' + (nightsAvg == null ? '-' : nightsAvg.toFixed(1) + ' из 7') + '</strong></div>' : '') +
+      (SHOW_STATE ? '<div><span>Среднее состояние</span><strong>' + (stAvg == null ? '-' : stAvg.toFixed(1) + ' из 5') + '</strong></div>' : '') + '</div>';
     // Сколько людей на каждом тарифе
     var noPlan = P.filter(function (p) { return !planId(p.s); }).length;
     h += '<div class="plan-count">' + PLANS.map(function (pl) {
@@ -402,7 +406,7 @@
     }).join('') + (noPlan ? '<span class="pill mute">не выбрали: ' + noPlan + '</span>' : '') + '</div>';
 
     h += '<h3>Каждый участник</h3><div class="tablewrap"><table><thead><tr>' +
-      '<th>Участник</th><th>Тариф</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Кураторы</th><th>Ночи</th><th>Практики</th><th>Доход в месяц: старт → итог</th><th>Состояние</th><th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
+      '<th>Участник</th><th>Тариф</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Кураторы</th>' + (SHOW_NIGHTS ? '<th>Ночи</th>' : '') + '<th>Практики</th><th>Доход в месяц: старт → итог</th>' + (SHOW_STATE ? '<th>Состояние</th>' : '') + '<th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
       '</tr></thead><tbody>' + all.map(function (x) {
         var p = x.p, st = x.st, c = p.s.start.cur;
         var mini = '<span class="mini" aria-hidden="true">' + p.s.weeks.map(function (w) { return '<i class="' + (w.meet ? 'y' : '') + '"></i>'; }).join('') + '</span> ';
@@ -417,17 +421,17 @@
             PLANS.map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === planId(p.s) ? ' selected' : '') + '>' + pl.name + '</option>'; }).join('') +
           '</select></td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
-          '<td>' + mini + st.meets + '</td><td>' + st.curs + '</td><td>' + st.nights + '</td><td>' + st.practices + '</td>' +
-          '<td>' + m2 + '</td><td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td><td>' + res + '</td>' +
+          '<td>' + mini + st.meets + '</td><td>' + st.curs + '</td>' + (SHOW_NIGHTS ? '<td>' + st.nights + '</td>' : '') + '<td>' + st.practices + '</td>' +
+          '<td>' + m2 + '</td>' + (SHOW_STATE ? '<td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td>' : '') + '<td>' + res + '</td>' +
           '<td>' + (p.id !== me.id ? '<button class="ghost danger small" type="button" data-delp="' + esc(p.id) + '">Удалить</button>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
 
-    h += '<h3>Посещаемость по неделям</h3><div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Неделя</th><th>Встреча с Татьяной</th><th>Занятие с куратором</th><th>Бадди</th><th>Практики выполнены</th><th>Ночей в среднем</th></tr></thead><tbody>' +
+    h += '<h3>Посещаемость по неделям</h3><div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Неделя</th><th>Встреча с Татьяной</th><th>Занятие с куратором</th><th>Бадди</th><th>Практики выполнены</th>' + (SHOW_NIGHTS ? '<th>Ночей в среднем</th>' : '') + '</tr></thead><tbody>' +
       MODULES.map(function (m, i) {
         var ws = P.map(function (p) { return p.s.weeks[i]; });
         var c = function (k) { return ws.filter(function (w) { return w[k]; }).length + ' из ' + N; };
         var n = avg(ws.map(function (w) { return sum(w.nights); }));
-        return '<tr><td>' + (i + 1) + (i === wk ? ' <span class="pill good">сейчас</span>' : '') + '</td><td>' + c('meet') + '</td><td>' + c('cur') + '</td><td>' + c('buddy') + '</td><td>' + sum(ws.map(function (w) { return sum(w.practices); })) + ' из ' + N * 3 + '</td><td>' + (n == null ? '-' : n.toFixed(1)) + '</td></tr>';
+        return '<tr><td>' + (i + 1) + (i === wk ? ' <span class="pill good">сейчас</span>' : '') + '</td><td>' + c('meet') + '</td><td>' + c('cur') + '</td><td>' + c('buddy') + '</td><td>' + sum(ws.map(function (w) { return sum(w.practices); })) + ' из ' + N * 3 + '</td>' + (SHOW_NIGHTS ? '<td>' + (n == null ? '-' : n.toFixed(1)) + '</td>' : '') + '</tr>';
       }).join('') + '</tbody></table></div>';
 
     h += '<h3>С чем пришли участники</h3><div class="hbars">' + SITUATIONS.map(function (t, i) {
