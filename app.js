@@ -232,7 +232,7 @@
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
       '<label class="f" for="s-tg">Ник в Telegram<input type="text" id="s-tg" data-bind="start.tg" value="' + esc(v.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"' + dis() + '></label>' +
       '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label></div></div>';
-    h += planBlock();
+    if (VIEW && admin) h += planBlock(); // участникам тарифы не показываем: это платформа, а не витрина
     h += '<div class="block"><h3>Доход на старте</h3><div class="row">' +
       '<label class="f" for="s-income">Ваш доход в месяц сейчас<input type="number" inputmode="numeric" id="s-income" data-bind="start.income" value="' + esc(v.income) + '" placeholder="0"' + dis() + '></label>' +
       '<label class="f" for="s-cur">Валюта<select id="s-cur" data-bind="start.cur"' + dis() + '>' + ['€', '$', '₴'].map(function (c) { return '<option' + (v.cur === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label></div>' +
@@ -269,7 +269,7 @@
     h += '<div class="chips" id="chips">' + MODULES.map(function (x, i) { return '<button class="chip" type="button" data-w="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>неделя</small></button>'; }).join('') + '</div>';
     var rng = weekRange(cur);
     h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
-    if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Выберите ваш тариф</b><small>От тарифа зависит, что показывает трекер.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
+    if (false) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Выберите ваш тариф</b><small>От тарифа зависит, что показывает трекер.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
     h += meetingBlock();
     h += curatorBlock();
     h += pushBlock();
@@ -278,12 +278,12 @@
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
       (isRec() ? chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Запись встречи с Татьяной', 'Доступна через сутки после эфира', 'meet')
         : chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной', '', 'meet')) +
-      (isVip() ? chkRow('w-vip', 'weeks.' + cur + '.vip', w.vip, 'Индивидуальная сессия с Татьяной', 'В тарифе VIP 4 сессии за программу', 'star') : '') +
+      (isVip() ? chkRow('w-vip', 'weeks.' + cur + '.vip', w.vip, 'Индивидуальная сессия с Татьяной', '4 сессии за программу', 'star') : '') +
       (feature('group') ? chkRow('w-group', 'weeks.' + cur + '.group', w.group, 'Групповая терапия', '', 'group') : '') +
       (feature('chat') ? chkRow('w-chat', 'weeks.' + cur + '.chat', w.chat, 'Сообщение психотерапевту в чате', 'Личный психотерапевт отвечает с обратной связью', 'chat') : '') +
       (feature('buddy') ? chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди', '', 'buddy') : '') +
-      '</div>' + (isRec() ? '<p class="scale">Групповая терапия, личный психотерапевт и бадди входят в тарифы «Поток», «Глубина» и VIP.</p>' : '') + '</div>';
-    var wnums = openNums(cur + 1);
+      '</div>' + '</div>';
+    var wnums = openNums(cur + 1).filter(function (n) { return practiceAccess(cur + 1, n) === 'ok'; });
     h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + (wnums.length ? '' : '<p class="scale" style="margin:0">Практики этой недели появятся после встречи с Татьяной.</p>') + wnums.map(function (n) {
       var j = n - 1, p = practices[pkey(cur + 1, n)];
       var title = esc((p && p.title) || 'Практика');
@@ -783,7 +783,7 @@
     var wk = cur + 1, list = weekPractices(wk), w = S.weeks[cur], h = '';
     var doneN = w.practices.filter(function (v, j) { return v && practiceAccess(wk, j + 1) === 'ok'; }).length, ofN = practicesOpenTo(cur);
     h += '<div class="chips">' + MODULES.map(function (x, i) {
-      var n = openNums(i + 1).length;
+      var n = openNums(i + 1).filter(function (k) { return admin || practiceAccess(i + 1, k) === 'ok'; }).length;
       return '<button class="chip pchip' + (n ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + (n ? n + ' ' + practWord(n) : 'скоро') + '</small></button>';
     }).join('') + '</div>';
     h += '<div class="mod-head"><h2>Модуль ' + wk + ' · <em>' + MODULES[cur][0] + '</em></h2>' +
@@ -793,7 +793,7 @@
     // Участник видит открытые практики; администратор — все созданные (и черновики) и кнопку «Добавить практику»
     var shown = [1, 2, 3].filter(function (n) {
       var p = practices[pkey(wk, n)];
-      return admin ? !!p || (pdraft && pdraft.week === wk && pdraft.num === n) : !!(p && p.is_open);
+      return admin ? !!p || (pdraft && pdraft.week === wk && pdraft.num === n) : !!(p && p.is_open) && practiceAccess(wk, n) === 'ok';
     });
     var free = [1, 2, 3].filter(function (n) { return !practices[pkey(wk, n)] && !(pdraft && pdraft.week === wk && pdraft.num === n); });
     h += '<div class="plist">' + shown.map(function (n, k) { return practiceCard(list[n - 1], n - 1, k); }).join('') + '</div>';
@@ -1496,7 +1496,7 @@
     $('a-signup').setAttribute('aria-selected', String(m === 'signup'));
     $('a-name-wrap').hidden = m !== 'signup';
     $('a-tg-wrap').hidden = m !== 'signup';
-    $('a-plan-wrap').hidden = m !== 'signup';
+    $('a-plan-wrap').hidden = true; // тариф участнику ставит администратор
     $('a-pass-wrap').hidden = m === 'forgot';
     $('a-forgot').hidden = m !== 'login';
     $('a-pass').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
@@ -1524,7 +1524,6 @@
     if (!email) return authMsg('Введите email.', 'err');
     if (mode !== 'forgot' && pass.length < 6) return authMsg('Пароль должен быть не короче 6 символов.', 'err');
     if (mode === 'signup' && !$('a-name').value.trim()) return authMsg('Напишите, как вас зовут.', 'err');
-    if (mode === 'signup' && !$('a-plan').value) return authMsg('Выберите ваш тариф.', 'err');
     if (mode === 'signup' && !tgNick($('a-tg').value)) return authMsg('Напишите ник в Telegram, например @anna_ivanova. Его можно посмотреть в Telegram: Настройки, затем Имя пользователя.', 'err');
     btn.disabled = true; authMsg('Секунду…');
     var p;
