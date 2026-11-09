@@ -52,7 +52,7 @@
   function dis() { return VIEW ? ' disabled' : ''; }
   function money(n, c) { return n == null ? '-' : Math.round(n).toLocaleString('ru-RU') + ' ' + (c || D().start.cur); }
 
-  function blankWeek() { return { meet: 0, cur: 0, buddy: 0, practices: [0, 0, 0], pnotes: ['', '', ''], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, insight: '', action: '', recap: '' }; }
+  function blankWeek() { return { meet: 0, cur: 0, buddy: 0, daily: { pol: [0, 0, 0, 0, 0, 0, 0], emo: [0, 0, 0, 0, 0, 0, 0] }, practices: [0, 0, 0], pnotes: ['', '', ''], nights: [0, 0, 0, 0, 0, 0, 0], s0: 0, s1: 0, insight: '', action: '', recap: '' }; }
   function blank() {
     var w = []; for (var i = 0; i < 8; i++) w.push(blankWeek());
     return { start: { name: '', cur: '€', date: DEFAULT_START, income: '', sit: [0, 0, 0, 0, 0], res: [0, 0, 0, 0, 0] }, weeks: w, end: { income: '', res: [0, 0, 0, 0, 0] }, cards: [] };
@@ -71,6 +71,8 @@
     o.weeks.forEach(function (w) {
       if (!Array.isArray(w.practices)) w.practices = [0, 0, 0];
       if (w.cur == null) w.cur = 0; // занятие с куратором (вместо групповой терапии и чата)
+      if (!w.daily) w.daily = {};
+      DAILY.forEach(function (d) { if (!Array.isArray(w.daily[d.key])) w.daily[d.key] = [0, 0, 0, 0, 0, 0, 0]; });
       if (!Array.isArray(w.pnotes)) w.pnotes = ['', '', ''];
       delete w.practice; delete w.income;
     });
@@ -137,16 +139,29 @@
   var SHOW_NIGHTS = false;
   // Оценка «Состояние: энергия и ясность» тоже скрыта. Вернуть — поставить true.
   var SHOW_STATE = false;
+  // Ежедневная практика в первые недели: каждый день полярности и эмоции, чтобы держать ритм.
+  // Номера недель с нуля: [0, 1] — недели 1 и 2.
+  var DAILY_WEEKS = [0, 1];
+  var DAILY = [
+    { key: 'pol', title: 'Проработка полярностей', url: 'https://practici-polyarnosti.vercel.app/' },
+    { key: 'emo', title: 'Проработка эмоций', url: 'https://emotional-pi.vercel.app/' }
+  ];
+  function hasDaily(i) { return DAILY_WEEKS.indexOf(i) >= 0; }
+  function dailyDone(w, i, s) {
+    if (!hasDaily(i) || !w.daily) return 0;
+    var n = weekLen(i, s);
+    return DAILY.reduce(function (t, d) { return t + sum((w.daily[d.key] || []).slice(0, n)); }, 0);
+  }
   function practicesOpenTo(i, s) { return [1, 2, 3].filter(function (n) { return practiceAccess(i + 1, n, s) === 'ok'; }).length; }
   // Пункты недели, которые считаются в кольце прогресса, зависят от тарифа
   function maxDone(s, i) {
     return 1 + 1 + (feature('buddy', s) ? 1 : 0) +
-      (isVip(s) ? 1 : 0) + practicesOpenTo(i, s) + (SHOW_NIGHTS ? weekLen(i, s) : 0);
+      (isVip(s) ? 1 : 0) + practicesOpenTo(i, s) + (SHOW_NIGHTS ? weekLen(i, s) : 0) + (hasDaily(i) ? DAILY.length * weekLen(i, s) : 0);
   }
   function done(w, s, i) {
     var pr = (w.practices || []).filter(function (v, j) { return v && practiceAccess(i + 1, j + 1, s) === 'ok'; }).length;
     return w.meet + (w.cur || 0) + (feature('buddy', s) ? w.buddy : 0) +
-      pr + (SHOW_NIGHTS ? sum(w.nights.slice(0, weekLen(i, s))) : 0) + (isVip(s) ? (w.vip || 0) : 0);
+      pr + (SHOW_NIGHTS ? sum(w.nights.slice(0, weekLen(i, s))) : 0) + dailyDone(w, i, s) + (isVip(s) ? (w.vip || 0) : 0);
   }
   function planPill(s) { var p = plan(s); return p ? '<span class="pill plan-' + p.id + '">' + p.name + '</span>' : '<span class="pill mute">тариф не выбран</span>'; }
 
@@ -161,6 +176,8 @@
       incPct: a != null && b != null && a > 0 ? Math.round((b - a) / a * 100) : null,
       meets: sum(W.map(function (w) { return w.meet; })),
       curs: sum(W.map(function (w) { return w.cur || 0; })),
+      daily: sum(W.map(function (w, i) { return dailyDone(w, i, s); })),
+      dailyMax: sum(W.map(function (w, i) { return hasDaily(i) ? DAILY.length * weekLen(i, s) : 0; })),
       nights: sum(W.map(function (w, i) { return sum(w.nights.slice(0, weekLen(i, s))); })),
       practices: sum(W.map(function (w, i) { return (w.practices || []).filter(function (v, j) { return v && practiceAccess(i + 1, j + 1, s) === 'ok'; }).length; })),
       practicesMax: sum(W.map(function (w, i) { return practicesOpenTo(i, s); })),
@@ -298,6 +315,19 @@
       return '<div class="crow has-ico"><span class="ci mute">' + svg('lock') + '</span><span>' + title + '<small>Станет доступна после встречи с Татьяной</small></span><span class="pill mute">закрыта</span></div>';
     }).join('') + '</div></div>';
     var ws0 = weekStart(cur), nn = [0, 1, 2, 3, 4, 5, 6].slice(0, weekLen(cur));
+    if (hasDaily(cur)) {
+      h += '<div class="block daily"><h3>Каждый день</h3><p class="scale" style="margin:0 0 12px">Чтобы держать ритм: каждый день проработка полярностей и эмоций. Отмечайте дни, когда сделали.</p>' +
+        DAILY.map(function (d) {
+          var arr = (w.daily && w.daily[d.key]) || [];
+          return '<div class="daily-row"><div class="daily-head"><b>' + esc(d.title) + '</b>' + (VIEW ? '' : '<a class="plink" href="' + esc(d.url) + '" target="_blank" rel="noopener">Открыть ↗</a>') + '</div>' +
+            '<div class="nights">' + nn.map(function (n) {
+              var day = ws0 ? addDays(ws0, n) : null, id = 'w-' + d.key + n;
+              var wd = day ? day.toLocaleDateString('ru-RU', { weekday: 'short' }) : 'день';
+              return '<label class="night" for="' + id + '"><b>' + wd + '</b><input class="chk" type="checkbox" id="' + id + '" data-bind="weeks.' + cur + '.daily.' + d.key + '.' + n + '"' + (arr[n] ? ' checked' : '') + dis() +
+                ' aria-label="' + esc(d.title) + ', ' + (day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : 'день ' + (n + 1)) + '">' + (day ? day.getDate() : n + 1) + '</label>';
+            }).join('') + '</div></div>';
+        }).join('') + '</div>';
+    }
     if (SHOW_NIGHTS) h += '<div class="block"><h3>Протокол для подсознания во сне</h3><div class="nights">' + nn.map(function (n) {
       var day = ws0 ? addDays(ws0, n) : null;
       var wd = day ? day.toLocaleDateString('ru-RU', { weekday: 'short' }) : 'ночь';
@@ -330,6 +360,7 @@
       '<div><span>' + (isRec(s) ? 'Записи встреч' : 'Встречи с Татьяной') + '</span><strong>' + st.meets + ' из 8</strong></div>' +
       '<div><span>Занятия с куратором</span><strong>' + st.curs + ' из 8</strong></div>' +
       '<div><span>Практики</span><strong>' + st.practices + ' из ' + st.practicesMax + '</strong></div>' +
+      (st.dailyMax ? '<div><span>Дни практики: полярности и эмоции</span><strong>' + st.daily + ' из ' + st.dailyMax + '</strong></div>' : '') +
       (SHOW_NIGHTS ? '<div><span>Ночей с протоколом</span><strong>' + st.nights + ' из ' + totalNights(s) + '</strong></div>' : '') + '</div>';
     h += '<div class="income"><h3>Доход: старт и итог</h3>' +
       '<div class="row"><label class="f" for="e-income">Ваш доход в месяц в конце программы, ' + esc(s.start.cur) + '<input type="number" inputmode="numeric" id="e-income" data-bind="end.income" value="' + esc(s.end.income) + '" placeholder="0"' + dis() + '></label></div>' +
@@ -406,7 +437,7 @@
     }).join('') + (noPlan ? '<span class="pill mute">не выбрали: ' + noPlan + '</span>' : '') + '</div>';
 
     h += '<h3>Каждый участник</h3><div class="tablewrap"><table><thead><tr>' +
-      '<th>Участник</th><th>Тариф</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Кураторы</th>' + (SHOW_NIGHTS ? '<th>Ночи</th>' : '') + '<th>Практики</th><th>Доход в месяц: старт → итог</th>' + (SHOW_STATE ? '<th>Состояние</th>' : '') + '<th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
+      '<th>Участник</th><th>Тариф</th><th>Обновлял(а)</th><th>Недели</th><th>Встречи</th><th>Кураторы</th><th>Дни практики</th>' + (SHOW_NIGHTS ? '<th>Ночи</th>' : '') + '<th>Практики</th><th>Доход в месяц: старт → итог</th>' + (SHOW_STATE ? '<th>Состояние</th>' : '') + '<th>Результаты до → после</th><th><span class="sr">Удалить</span></th>' +
       '</tr></thead><tbody>' + all.map(function (x) {
         var p = x.p, st = x.st, c = p.s.start.cur;
         var mini = '<span class="mini" aria-hidden="true">' + p.s.weeks.map(function (w) { return '<i class="' + (w.meet ? 'y' : '') + '"></i>'; }).join('') + '</span> ';
@@ -421,7 +452,7 @@
             PLANS.map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === planId(p.s) ? ' selected' : '') + '>' + pl.name + '</option>'; }).join('') +
           '</select></td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
-          '<td>' + mini + st.meets + '</td><td>' + st.curs + '</td>' + (SHOW_NIGHTS ? '<td>' + st.nights + '</td>' : '') + '<td>' + st.practices + '</td>' +
+          '<td>' + mini + st.meets + '</td><td>' + st.curs + '</td><td>' + st.daily + '</td>' + (SHOW_NIGHTS ? '<td>' + st.nights + '</td>' : '') + '<td>' + st.practices + '</td>' +
           '<td>' + m2 + '</td>' + (SHOW_STATE ? '<td>' + (st.state == null ? '-' : st.state.toFixed(1)) + '</td>' : '') + '<td>' + res + '</td>' +
           '<td>' + (p.id !== me.id ? '<button class="ghost danger small" type="button" data-delp="' + esc(p.id) + '">Удалить</button>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
@@ -1450,7 +1481,7 @@
     var p = e.target.getAttribute && e.target.getAttribute('data-bind'); if (!p) return;
     set(p, e.target.type === 'checkbox' ? (e.target.checked ? 1 : 0) : e.target.value);
     touch();
-    if (/^weeks\.\d+\.(meet|cur|buddy|nights|practices|vip)/.test(p)) updDone();
+    if (/^weeks\.\d+\.(meet|cur|buddy|nights|daily|practices|vip)/.test(p)) updDone();
     if (p === 'start.name' || p === 'start.date') updHead();
     if (p === 'end.income') updIncome();
   });

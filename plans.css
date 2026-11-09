@@ -47,3 +47,10 @@ select.plan-select.plan-none { color: var(--warn); }
 @media (min-width: 641px) { .meet.cs .cs-list, .meet.cs .cs-full { grid-column: 1 / -1; } }
 .rem-st { margin: 0 0 10px; font-size: 14px; } .rem-chats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .meet.push { margin-top: 14px; }
+/* Ежедневная практика в первые недели */
+.daily-row { padding: 10px 0 12px; border-top: 1px solid var(--line-soft); }
+.daily-row:first-of-type { border-top: 0; padding-top: 0; }
+.daily-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.daily-head b { font-weight: 500; }
+.daily .chk { width: 30px; height: 30px; border-radius: 50%; }
+.daily-head .plink { text-decoration: none; margin: 0; }
