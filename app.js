@@ -261,7 +261,7 @@
       '<label class="f" for="s-income">Ваш доход в месяц сейчас<input type="number" inputmode="numeric" id="s-income" data-bind="start.income" value="' + esc(v.income) + '" placeholder="0"' + dis() + '></label>' +
       '<label class="f" for="s-cur">Валюта<select id="s-cur" data-bind="start.cur"' + dis() + '>' + ['€', '$', '₴'].map(function (c) { return '<option' + (v.cur === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label></div>' +
       '<p class="scale">В конце программы вы запишете доход ещё раз во вкладке «Итоги» и увидите, как он изменился.</p></div>';
-    h += '<div class="block"><h3>Что вы узнаёте в себе</h3><div class="sitlist">' + SITUATIONS.map(function (t, i) {
+    h += '<div class="block"><h3>С чем вы пришли в программу</h3><p class="field-hint">Какие из этих ситуаций сейчас происходят с вами? Отметьте всё, что про вас. Можно выбрать несколько.</p><div class="sitlist">' + SITUATIONS.map(function (t, i) {
       return chkRow('sit-' + i, 'start.sit.' + i, v.sit[i], t);
     }).join('') + '</div></div>';
     h += '<div class="block"><h3>Где вы сейчас по результатам программы</h3><div class="cmp">' + RESULTS.map(function (t, i) {
