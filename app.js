@@ -264,9 +264,9 @@
     h += '<div class="block"><h3>С чем вы пришли в программу</h3><p class="field-hint">Какие из этих ситуаций сейчас происходят с вами? Отметьте всё, что про вас. Можно выбрать несколько.</p><div class="sitlist">' + SITUATIONS.map(function (t, i) {
       return chkRow('sit-' + i, 'start.sit.' + i, v.sit[i], t);
     }).join('') + '</div></div>';
-    h += '<div class="block"><h3>Где вы сейчас по результатам программы</h3><div class="cmp">' + RESULTS.map(function (t, i) {
+    h += '<div class="block"><h3>Оцените себя сейчас</h3><p class="field-hint">Это ваша точка «до». Насколько каждая фраза уже про вас сегодня: <b>1</b> — совсем нет, <b>5</b> — да, уже так. Честно, правильных ответов нет. В конце программы вы оцените себя по тем же фразам во вкладке «Итоги» и увидите, что изменилось.</p><div class="cmp">' + RESULTS.map(function (t, i) {
       return '<div class="item"><span class="name">' + t + '</span>' + dotsRow('start.res.' + i, v.res[i]) + '</div>';
-    }).join('') + '</div><p class="scale">От 1, когда это совсем не про меня, до 5, когда это уже так.</p></div>';
+    }).join('') + '</div><p class="scale">1 — совсем не про меня · 5 — это уже так</p></div>';
     $('start').innerHTML = h;
   }
   // Выбор тарифа на вкладке «Старт»: четыре карточки, у выбранной виден состав
