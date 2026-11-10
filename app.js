@@ -252,7 +252,7 @@
 
   function renderStart() {
     var v = D().start, h = '';
-    h += '<h2>Точка старта</h2><p class="note">Отметьте, что вам знакомо, и оцените, где вы сейчас. В конце программы вы посмотрите, как изменилось ваше состояние и ваши решения.</p>';
+    h += '<h2>Точка старта</h2><p class="note">Включите напоминания, отметьте, с чем вы пришли, и оцените себя сейчас. В конце программы вы увидите, что изменилось.</p>';
     h += pushBlock(); // напоминания включают один раз, сразу при первом входе
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
       '<label class="f" for="s-tg">Ник в Telegram<input type="text" id="s-tg" data-bind="start.tg" value="' + esc(v.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"' + dis() + '></label>' +
