@@ -253,6 +253,7 @@
   function renderStart() {
     var v = D().start, h = '';
     h += '<h2>Точка старта</h2><p class="note">Отметьте, что вам знакомо, и оцените, где вы сейчас. В конце программы вы посмотрите, как изменилось ваше состояние и ваши решения.</p>';
+    h += pushBlock(); // напоминания включают один раз, сразу при первом входе
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
       '<label class="f" for="s-tg">Ник в Telegram<input type="text" id="s-tg" data-bind="start.tg" value="' + esc(v.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"' + dis() + '></label>' +
       '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label></div></div>';
@@ -296,7 +297,6 @@
     if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Укажите ваш тариф</b><small>Это займёт секунду.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
     h += meetingBlock();
     h += curatorBlock();
-    h += pushBlock();
     h += helpBox('w');
     h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div><div class="theme"><h3>Результат модуля</h3><p>' + M[2] + '</p></div></div>';
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
@@ -636,7 +636,7 @@
         pushState = sub ? 'on' : 'off';
         if (sub) savePushSub(sub); // обновляем привязку к текущему участнику
       });
-    }).catch(function () { pushState = 'unsupported'; }).then(function () { if (tab === 'weeks') renderWeeks(); });
+    }).catch(function () { pushState = 'unsupported'; }).then(function () { if (tab === 'start') renderStart(); });
   }
   function b64ToBytes(b64) {
     var pad = '='.repeat((4 - b64.length % 4) % 4), raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
@@ -649,7 +649,7 @@
   function enablePush(btn) {
     if (!swReg) return toast('Обновите страницу и попробуйте ещё раз', 'err');
     btn.disabled = true; btn.textContent = 'Включаем…';
-    var fail = function (msg) { btn.disabled = false; btn.textContent = 'Включить напоминания'; toast(msg, 'err'); renderWeeks(); };
+    var fail = function (msg) { btn.disabled = false; btn.textContent = 'Включить напоминания'; toast(msg, 'err'); renderStart(); };
     Notification.requestPermission().then(function (perm) {
       if (perm !== 'granted') { pushState = perm === 'denied' ? 'denied' : 'off'; return fail('Без разрешения на уведомления напоминания не придут'); }
       return sb.rpc('push_public_key').then(function (r) {
@@ -657,7 +657,7 @@
         return swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(r.data) }).then(function (sub) {
           return savePushSub(sub).then(function (s2) {
             if (s2.error) return fail('Не удалось сохранить: ' + s2.error.message);
-            pushState = 'on'; renderWeeks(); toast('Напоминания включены ✓');
+            pushState = 'on'; renderStart(); toast('Напоминания включены ✓');
             try { swReg.showNotification('Напоминания включены', { body: 'Мы напомним об эфирах за сутки и за час до начала.', icon: 'icons/icon-192.png' }); } catch (e) {}
           });
         });
@@ -670,7 +670,7 @@
       if (!sub) return;
       var ep = sub.endpoint;
       return sub.unsubscribe().then(function () { return sb.rpc('delete_push_sub', { p_endpoint: ep }); });
-    }).then(function () { pushState = 'off'; renderWeeks(); toast('Напоминания выключены'); });
+    }).then(function () { pushState = 'off'; renderStart(); toast('Напоминания выключены'); });
   }
   function pushBlock() {
     if (VIEW || pushState === 'unknown') return '';
@@ -1235,7 +1235,7 @@
     var h = '<section class="helpsec remsec"><h3>Напоминания об эфирах</h3>' +
       '<p class="note">За сутки и за час до начала: урок с Татьяной по четвергам в 9:00 по Киеву и занятия с кураторами, у которых указано время. Ссылка на эфир берётся из трекера.</p>';
     if (remSt.missing) return h + '<p class="msg err">Чтобы включить напоминания, выполните один раз код reminders.sql в Supabase.</p></section>';
-    h += '<p class="rem-st"><b>На телефон:</b> ' + (remSt.push_ready ? 'включили ' + (remSt.push_subs || 0) + ' ' + devWord(remSt.push_subs || 0) + '. Участники включают их сами на вкладке «Неделя».' : 'настраиваются…') +
+    h += '<p class="rem-st"><b>На телефон:</b> ' + (remSt.push_ready ? 'включили ' + (remSt.push_subs || 0) + ' ' + devWord(remSt.push_subs || 0) + '. Участники включают их сами на вкладке «Старт».' : 'настраиваются…') +
       (remSt.cron ? '' : ' · <span class="down">расписание не запущено</span>') + '</p>';
     if (remSt.push_ready) h += '<div class="actions"><button class="ghost gold small" type="button" id="push-test">Отправить тестовое уведомление мне</button></div>';
     h += '<p class="rem-st"><b>В Telegram-группу</b> (по желанию): ' + (remSt.chat_id ? '✓ <b>' + esc(remSt.chat_title || remSt.chat_id) + '</b>' : 'группа не выбрана') + '</p>';
