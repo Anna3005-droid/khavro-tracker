@@ -195,6 +195,8 @@
   }
   // Линейные иконки 24×24 для вкладок и чек-листа
   var ICON = {
+    records: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10.5 9.5v5l4-2.5z"/>',
+    today: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
     heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
     yinyang: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a4.25 4.25 0 0 1 0 8.5 4.25 4.25 0 0 0 0 8.5"/><circle cx="12" cy="7.75" r=".9"/><circle cx="12" cy="16.25" r=".9"/>',
     cards: '<rect x="3" y="6" width="12" height="16" rx="2" transform="rotate(-8 9 14)"/><rect x="9" y="3" width="12" height="16" rx="2"/><path d="M15 8.5l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>',
@@ -290,6 +292,7 @@
     h += '<div class="chips" id="chips">' + MODULES.map(function (x, i) { return '<button class="chip" type="button" data-w="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>неделя</small></button>'; }).join('') + '</div>';
     var rng = weekRange(cur);
     h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
+    h += todayBlock();
     if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Укажите ваш тариф</b><small>Это займёт секунду.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
     h += meetingBlock();
     h += curatorBlock();
@@ -520,7 +523,7 @@
     return sb.from('meetings').select('*').then(function (r) {
       meetings = {}; meetingsLoaded = true; meetingsMissing = !!r.error;
       (r.data || []).forEach(function (m) { meetings[m.week] = m; });
-      if (tab === 'weeks') renderWeeks();
+      if (tab === 'weeks') renderWeeks(); else if (tab === 'records') renderRecords();
     });
   }
   // ---------- Занятия с кураторами ----------
@@ -530,7 +533,7 @@
   function loadCurator() {
     return sb.from('curator_sessions').select('*').order('day').order('time').then(function (r) {
       csLoaded = true; csMissing = !!r.error; csessions = r.data || [];
-      if (tab === 'weeks') renderWeeks();
+      if (tab === 'weeks') renderWeeks(); else if (tab === 'records') renderRecords();
     });
   }
   function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -677,6 +680,69 @@
     if (pushState === 'denied') return h + '<small>Уведомления запрещены. Разрешите их для этого сайта в настройках телефона или браузера и обновите страницу.</small></div></div>';
     if (pushState === 'ios-install') return h + '<small>На iPhone сначала добавьте трекер на экран «Домой»: «Поделиться» → «На экран „Домой“». Откройте трекер с иконки, и здесь появится кнопка.</small></div></div>';
     return h + '<small>Этот браузер не поддерживает уведомления. Откройте трекер в Chrome или Safari.</small></div></div>';
+  }
+
+  // ---------- «Сегодня»: что сделать прямо сейчас ----------
+  // Показывается вверху текущей недели. Собирает эфиры сегодня/завтра, ежедневную практику,
+  // неотмеченные встречи, открытые практики и пустое действие недели.
+  var LESSON_TIME = '09:00';
+  function todayIndex() {
+    var a = weekStart(cur); if (!a) return -1;
+    var d = Math.round((new Date(ymd(new Date()) + 'T00:00:00') - new Date(ymd(a) + 'T00:00:00')) / 864e5);
+    return d >= 0 && d < weekLen(cur) ? d : -1;
+  }
+  function todayBlock() {
+    if (VIEW || !S || cur !== currentWeek(S)) return '';
+    var w = S.weeks[cur], today = ymd(new Date()), tomorrow = ymd(addDays(new Date(), 1)), items = [];
+    var item = function (icon, title, sub, acts) { items.push('<div class="td-item"><span class="ci">' + svg(icon) + '</span><div class="td-text"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</div>' + (acts ? '<div class="td-acts">' + acts + '</div>' : '') + '</div>'); };
+    var link = function (u, label, ghost) { return '<a class="btnlink' + (ghost ? ' ghostlink' : '') + '" href="' + esc(u) + '" target="_blank" rel="noopener">' + label + '</a>'; };
+    // Урок с Татьяной
+    var md = meetingDate(cur), m = meetings[cur + 1] || {}, live = safeLink(m.live_url);
+    if (md && ymd(md) === today) item('meet', 'Сегодня урок с Татьяной в ' + LESSON_TIME, 'По Киеву', !isRec() && live ? link(live, 'Перейти на эфир') : '<span class="meet-wait">Ссылка появится перед встречей</span>');
+    else if (md && ymd(md) === tomorrow) item('meet', 'Завтра урок с Татьяной в ' + LESSON_TIME, 'По Киеву. Ссылка будет здесь и в напоминании', '');
+    // Занятия с кураторами
+    weekSessions(cur).concat(weekSessions(Math.min(7, cur + 1))).forEach(function (c) {
+      if (c.day === today) item('chat', 'Сегодня занятие с куратором' + (c.time ? ' в ' + esc(c.time) : ''), esc(c.title || 'По Киеву'), safeLink(c.live_url) ? link(c.live_url, 'Подключиться') : '<span class="meet-wait">Ссылка появится перед занятием</span>');
+      else if (c.day === tomorrow) item('chat', 'Завтра занятие с куратором' + (c.time ? ' в ' + esc(c.time) : ''), esc(c.title || ''), '');
+    });
+    // Ежедневная практика
+    var di = todayIndex();
+    if (hasDaily(cur) && di >= 0) DAILY.forEach(function (d) {
+      if (!(w.daily && w.daily[d.key] && w.daily[d.key][di])) item('leaf', d.title + ' за сегодня', 'Каждый день, чтобы держать ритм', link(d.url, 'Открыть ↗', true) + '<button class="ghost gold small" type="button" data-tdaily="' + d.key + '">✓ Сделано</button>');
+    });
+    // Неотмеченные встречи
+    if (md && ymd(md) <= today && !w.meet) item('meet', 'Были на уроке с Татьяной?', 'Отметьте, если были на эфире или посмотрели запись', '<button class="ghost gold small" type="button" data-ttick="meet">✓ Отметить</button>');
+    if (!w.cur && weekSessions(cur).some(function (c) { return c.day <= today; })) item('chat', 'Были на занятии с куратором?', 'Отметьте, если были или посмотрели запись', '<button class="ghost gold small" type="button" data-ttick="cur">✓ Отметить</button>');
+    // Открытые и не выполненные практики
+    openNums(cur + 1).forEach(function (n) {
+      if (practiceAccess(cur + 1, n) !== 'ok' || (w.practices || [])[n - 1]) return;
+      var p = practices[pkey(cur + 1, n)];
+      item('practice', 'Практика ждёт вас', esc((p && p.title) || ''), '<button class="ghost gold small" type="button" data-gopr="' + (n - 1) + '">Открыть</button>');
+    });
+    // Действие недели
+    if (!w.action) item('start', 'Запишите действие недели', 'Один шаг к деньгам на эту неделю', '<button class="ghost gold small" type="button" data-tfocus="w-action">Написать</button>');
+    var dt = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+    return '<div class="today"><div class="td-head"><span class="ci">' + svg('today') + '</span><div><h3>Сегодня</h3><small>' + dt.charAt(0).toUpperCase() + dt.slice(1) + '</small></div></div>' +
+      (items.length ? items.join('') : '<p class="td-done">На сегодня всё сделано ✨ Отличный ритм!</p>') + '</div>';
+  }
+
+  // ---------- Вкладка «Записи»: все записи эфиров в одном месте ----------
+  function renderRecords() {
+    var h = '<h2>Записи эфиров</h2><p class="note">Уроки с Татьяной и занятия с кураторами. Новые записи появляются здесь после эфира.</p>', weeks = [];
+    for (var i = 7; i >= 0; i--) {
+      var rows = [], md = meetingDate(i), m = meetings[i + 1] || {}, recs = recLinks(m.record_url).filter(safeLink);
+      var when = function (d) { if (!d) return ''; var t = d.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }); return t.charAt(0).toUpperCase() + t.slice(1); };
+      if (recs.length) rows.push('<div class="rec-item"><span class="ci">' + svg('meet') + '</span><div class="rec-text"><b>Урок с Татьяной</b><small>' + when(md) + '</small></div><div class="rec-acts">' +
+        recs.map(function (u, k) { return '<a class="btnlink ghostlink" href="' + esc(u) + '" target="_blank" rel="noopener">' + (recs.length > 1 ? 'Часть ' + (k + 1) : 'Смотреть') + '</a>'; }).join('') + '</div></div>');
+      weekSessions(i).forEach(function (c) {
+        var cr = recLinks(c.record_url).filter(safeLink); if (!cr.length) return;
+        rows.push('<div class="rec-item"><span class="ci">' + svg('chat') + '</span><div class="rec-text"><b>Занятие с куратором' + (c.title ? ': ' + esc(c.title) : '') + '</b><small>' + when(new Date(c.day + 'T00:00:00')) + '</small></div><div class="rec-acts">' +
+          cr.map(function (u, k) { return '<a class="btnlink ghostlink" href="' + esc(u) + '" target="_blank" rel="noopener">' + (cr.length > 1 ? 'Часть ' + (k + 1) : 'Смотреть') + '</a>'; }).join('') + '</div></div>');
+      });
+      if (rows.length) weeks.push('<section class="rec-week"><p class="eyebrow">Неделя ' + (i + 1) + '</p><h3>' + esc(MODULES[i][0]) + '</h3>' + rows.join('') + '</section>');
+    }
+    h += weeks.length ? weeks.join('') : '<div class="empty">Записей пока нет. Они появятся здесь после первого эфира.</div>';
+    $('records').innerHTML = h;
   }
 
   // Дата встречи: первый четверг недели программы
@@ -1280,14 +1346,14 @@
   function render() {
     renderViewbar();
     if (tab === 'start') renderStart(); else if (tab === 'weeks') renderWeeks(); else if (tab === 'total') renderTotal();
-    else if (tab === 'practice') renderPractice(); else renderPeople();
+    else if (tab === 'practice') renderPractice(); else if (tab === 'records') renderRecords(); else renderPeople();
   }
   function show(t) {
     tab = t;
-    if (t === 'people' || t === 'practice') VIEW = null;
+    if (t === 'people' || t === 'practice' || t === 'records') VIEW = null;
     document.querySelectorAll('#tabs .tab').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'); });
-    ['start', 'weeks', 'practice', 'total', 'people'].forEach(function (id) { $(id).hidden = id !== t; });
-    $('reset').hidden = t === 'people' || t === 'practice' || !!VIEW;
+    ['start', 'weeks', 'practice', 'records', 'total', 'people'].forEach(function (id) { $(id).hidden = id !== t; });
+    $('reset').hidden = t === 'people' || t === 'practice' || t === 'records' || !!VIEW;
     render();
     window.scrollTo(0, 0);
   }
@@ -1417,6 +1483,9 @@
     if (t.dataset.goplan) { show('start'); var pb = $('plan-block'); if (pb) pb.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
     if (t.dataset.pcard) { openCards[t.dataset.pcard] = !openCards[t.dataset.pcard]; return renderPractice(); }
     if (t.dataset.gopr != null) { e.preventDefault(); return goPractice(Number(t.dataset.gopr)); }
+    if (t.dataset.tdaily) { var di = todayIndex(); if (di >= 0) { S.weeks[cur].daily[t.dataset.tdaily][di] = 1; touch(); renderWeeks(); toast('Отмечено ✓'); } return; }
+    if (t.dataset.ttick) { S.weeks[cur][t.dataset.ttick] = 1; touch(); renderWeeks(); toast('Отмечено ✓'); return; }
+    if (t.dataset.tfocus) { var fe = $(t.dataset.tfocus); if (fe) { fe.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(function () { fe.focus(); }, 350); } return; }
     if (t.dataset.pdone != null) {
       var pj = Number(t.dataset.pdone), pv = S.weeks[cur].practices[pj] ? 0 : 1;
       S.weeks[cur].practices[pj] = pv; touch(); renderPractice();
@@ -1621,7 +1690,7 @@
         clearInterval(peopleTimer);
         // Раз в минуту проверяем отметки и новые запросы помощи, на любой вкладке
         peopleTimer = setInterval(function () { if (!document.hidden) loadPeople(); }, 60000);
-      } else show('start');
+      } else { if (S.start.name && planId()) cur = currentWeek(S); show(S.start.name && planId() ? 'weeks' : 'start'); }
     });
   }
 
