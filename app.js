@@ -26,6 +26,11 @@
   // Первое занятие в четверг 5 ноября: с него начинается неделя 1, недели идут с четверга по среду
   var DEFAULT_START = '2026-11-05';
 
+  // Трекер открыт с зеркала на GitHub Pages (для тех, у кого не открывается vercel.app):
+  // тогда ссылки на тренажёры ведут на их зеркала, а уведомление куратору идёт через сервер на Vercel.
+  var ON_MIRROR = /\.github\.io$/.test(location.hostname);
+  var API_BASE = ON_MIRROR ? 'https://khavro-tracker.vercel.app/' : '';
+
   var cfg = window.TRACKER_CONFIG || {};
   var sb = window.supabase && cfg.supabaseUrl && cfg.supabaseUrl.indexOf('YOUR-') < 0
     ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey) : null;
@@ -1159,7 +1164,7 @@
     return sb.auth.getSession().then(function (s) {
       var token = s.data.session && s.data.session.access_token;
       if (!token) return null;
-      return fetch('api/notify-help', {
+      return fetch(API_BASE + 'api/notify-help', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify(payload)
@@ -1323,11 +1328,11 @@
   // Отдельные сайты-тренажёры команды. Открываются в новой вкладке: у каждого свой прогресс
   // на телефоне, и каждый можно поставить на главный экран отдельным значком.
   var TOOLS = [
-    { url: 'https://practici-karty.vercel.app/', icon: 'cards', title: 'Метафорические карты', tag: 'Вторичные выгоды',
+    { url: ON_MIRROR ? 'https://anna3005-droid.github.io/Practici/karty/' : 'https://practici-karty.vercel.app/', icon: 'cards', title: 'Метафорические карты', tag: 'Вторичные выгоды',
       text: 'Рандомайзер колоды МАК. Сформулируйте запрос, вытяните 1 или 3 карты, ответьте на вопросы к карте. Расклады сохраняются в дневнике.' },
-    { url: 'https://emotional-pi.vercel.app/', icon: 'heart', title: 'Проработка эмоций', tag: 'Шкала эмоций',
+    { url: ON_MIRROR ? 'https://anna3005-droid.github.io/Practici/' : 'https://emotional-pi.vercel.app/', icon: 'heart', title: 'Проработка эмоций', tag: 'Шкала эмоций',
       text: 'Девять уровней от Апатии до Мира. Отмечайте проработанные состояния и следите за прогрессом за день.' },
-    { url: 'https://practici-polyarnosti.vercel.app/', icon: 'yinyang', title: 'Проработка полярностей', tag: 'Протокол «Слив»',
+    { url: ON_MIRROR ? 'https://anna3005-droid.github.io/Practici/polyarnosti/' : 'https://practici-polyarnosti.vercel.app/', icon: 'yinyang', title: 'Проработка полярностей', tag: 'Протокол «Слив»',
       text: 'Пары полярностей порциями по 10–15, можно пропускать и добавлять свои личные полярности.' }
   ];
   // Под практиками недели: ссылки на сайты-тренажёры. Каждый открывается отдельно, в новой вкладке.

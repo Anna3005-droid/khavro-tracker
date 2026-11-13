@@ -1,0 +1,23 @@
+# Зеркало сайта на GitHub Pages.
+# После каждого изменения основной ветки копирует её в ветку gh-pages,
+# а GitHub Pages публикует оттуда сайт по адресу https://<логин>.github.io/<репозиторий>/.
+# Vercel это не трогает: он по-прежнему публикует основную ветку.
+name: Зеркало на GitHub Pages
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+jobs:
+  mirror:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Скопировать основную ветку в gh-pages
+        run: git push --force origin HEAD:gh-pages
+      - name: Попросить GitHub Pages пересобрать сайт
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "Pages пересоберётся сам"
