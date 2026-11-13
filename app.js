@@ -948,6 +948,8 @@
     h += '<div class="mod-head"><h2>Модуль ' + wk + ' · <em>' + MODULES[cur][0] + '</em></h2>' +
       (ofN ? '<div class="mod-prog"><span>Выполнено <b>' + doneN + '</b> из ' + ofN + '</span><span class="thin" role="img" aria-label="Выполнено ' + doneN + ' из ' + ofN + '"><i style="width:' + (doneN / ofN * 100).toFixed(0) + '%"></i></span></div>' : '') + '</div>';
     mountCards();
+    // Тренажёры (карты, эмоции, полярности) показываем только в неделе 1, чтобы не путать с практиками других недель
+    $('practice-tools').hidden = cur !== 0;
     if (!practicesLoaded) { $('practice-body').innerHTML = h + '<p class="loading">Загружаем практики…</p>'; return; }
     // Участник видит открытые практики; администратор — все созданные (и черновики) и кнопку «Добавить практику»
     var shown = [1, 2, 3].filter(function (n) {
