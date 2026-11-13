@@ -87,3 +87,14 @@ select.plan-select.plan-none { color: var(--warn); }
 .rec-week { padding-bottom: 6px; border-bottom: 1px solid var(--line-soft); margin-bottom: 18px; }
 .rec-title { line-height: 1.15; }
 .rec-num { font-family: var(--body); font-weight: 600; font-size: 30px; line-height: 1.1; }
+/* Расписание недели */
+.sched { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius, 12px); padding: 12px 14px; margin-bottom: 14px; }
+.sched-h { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.sched-row { display: grid; grid-template-columns: minmax(0, 1.1fr) auto minmax(0, 1.4fr); gap: 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line-soft); font-size: 14px; }
+.sched-row:first-of-type { border-top: 0; }
+.sched-day { color: var(--muted); }
+.sched-time { font-weight: 600; color: var(--acc2, var(--gold)); font-variant-numeric: tabular-nums; }
+.sched-what { color: var(--ink); }
+.sched-row.past { opacity: .55; }
+.sched-row.now .sched-day { color: var(--ink); font-weight: 500; }
+.sched-plain { background: none; border: 0; padding: 0; margin: 0; }

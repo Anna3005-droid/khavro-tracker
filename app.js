@@ -254,6 +254,10 @@
     var v = D().start, h = '';
     h += '<h2>Точка старта</h2><p class="note">Включите напоминания, отметьте, с чем вы пришли, и оцените себя сейчас. В конце программы вы увидите, что изменилось.</p>';
     h += pushBlock(); // напоминания включают один раз, сразу при первом входе
+    h += '<div class="block"><h3>Расписание программы</h3><div class="sched sched-plain">' +
+      '<div class="sched-row"><span class="sched-day">Каждый понедельник</span><span class="sched-time">' + CURATOR_TIME + '</span><span class="sched-what">Занятие с куратором</span></div>' +
+      '<div class="sched-row"><span class="sched-day">Каждый четверг</span><span class="sched-time">' + LESSON_TIME + '</span><span class="sched-what">Урок с Татьяной</span></div>' +
+      '</div><p class="scale" style="margin:8px 0 0">Время по Киеву. Ссылки на эфиры появятся во вкладке «Неделя», напоминания придут на телефон.</p></div>';
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
       '<label class="f" for="s-tg">Ник в Telegram<input type="text" id="s-tg" data-bind="start.tg" value="' + esc(v.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"' + dis() + '></label>' +
       '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label></div></div>';
@@ -293,6 +297,7 @@
     h += '<div class="chips" id="chips">' + MODULES.map(function (x, i) { return '<button class="chip" type="button" data-w="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>неделя</small></button>'; }).join('') + '</div>';
     var rng = weekRange(cur);
     h += '<div class="wk-head"><div><p class="eyebrow">Неделя ' + (cur + 1) + (rng ? ' · ' + rng : '') + '</p><h2>' + M[0] + '</h2></div><div class="ring" id="w-ring" role="img"></div></div>';
+    h += scheduleBlock();
     h += todayBlock();
     if (!planId() && !VIEW) h += '<div class="helpbox"><span class="ci">' + svg('start') + '</span><div class="hb-text"><b>Укажите ваш тариф</b><small>Это займёт секунду.</small></div><button class="btn" type="button" data-goplan="1">Выбрать</button></div>';
     h += meetingBlock();
@@ -540,11 +545,32 @@
     });
   }
   function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  // Постоянное расписание: каждый понедельник в 18:00 по Киеву — занятие с куратором.
+  // Если админ сам добавил занятие на этот понедельник (тема, ссылка, запись), показывается оно.
+  var CURATOR_WEEKDAY = 1, CURATOR_TIME = '18:00';
   function weekSessions(i) {
     var a = weekStart(i); if (!a) return [];
     var from = ymd(a), to = ymd(addDays(a, weekLen(i) - 1));
-    return csessions.filter(function (c) { return c.day >= from && c.day <= to; })
-      .sort(function (x, y) { return (x.day + x.time).localeCompare(y.day + y.time); });
+    var list = csessions.filter(function (c) { return c.day >= from && c.day <= to; });
+    for (var k = 0; k < weekLen(i); k++) {
+      var d = addDays(a, k);
+      if (d.getDay() === CURATOR_WEEKDAY && !list.some(function (c) { return c.day === ymd(d); }))
+        list.push({ id: 'auto-' + ymd(d), auto: true, day: ymd(d), time: CURATOR_TIME, title: '', live_url: '', record_url: '' });
+    }
+    return list.sort(function (x, y) { return (x.day + x.time).localeCompare(y.day + y.time); });
+  }
+  // «Расписание недели» под заголовком недели: даты и время эфиров
+  function scheduleBlock() {
+    var rows = [], md = meetingDate(cur);
+    weekSessions(cur).forEach(function (c) { rows.push({ k: c.day + c.time, d: new Date(c.day + 'T00:00:00'), t: c.time, what: 'Занятие с куратором' + (c.title ? ': ' + esc(c.title) : '') }); });
+    if (md) rows.push({ k: ymd(md) + LESSON_TIME, d: md, t: LESSON_TIME, what: 'Урок с Татьяной' });
+    if (!rows.length) return '';
+    rows.sort(function (x, y) { return x.k.localeCompare(y.k); });
+    var today = ymd(new Date());
+    return '<div class="sched"><p class="sched-h">Расписание недели · по Киеву</p>' + rows.map(function (r) {
+      var day = r.d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' }), past = ymd(r.d) < today, now = ymd(r.d) === today;
+      return '<div class="sched-row' + (past ? ' past' : '') + (now ? ' now' : '') + '"><span class="sched-day">' + day.charAt(0).toUpperCase() + day.slice(1) + '</span><span class="sched-time">' + esc(r.t) + '</span><span class="sched-what">' + r.what + (now ? ' <span class="pill good">сегодня</span>' : '') + '</span></div>';
+    }).join('') + '</div>';
   }
   function csWhen(c) {
     var d = new Date(c.day + 'T00:00:00'); if (isNaN(d.getTime())) return '';
@@ -556,7 +582,7 @@
     if (isRec() && !admin) return '';
     var list = weekSessions(cur), editing = admin && !VIEW;
     var h = '<div class="meet cs"><span class="ci">' + svg('chat') + '</span><div class="hb-text"><b>Занятия с кураторами</b>' +
-      '<small>' + (list.length ? 'На этой неделе: ' + list.length : 'Расписание уточняется') + '</small></div>';
+      '<small>' + (list.length ? 'На этой неделе: ' + list.length : 'Каждый понедельник в ' + CURATOR_TIME + ' по Киеву') + '</small></div>';
     if (list.length) {
       h += '<div class="cs-list">' + list.map(function (c) {
         var live = safeLink(c.live_url), recs = recLinks(c.record_url).filter(safeLink), past = csPast(c);
@@ -566,7 +592,8 @@
         if (!acts) acts = '<span class="meet-wait">' + (past ? 'Запись появится позже' : 'Ссылка появится перед занятием') + '</span>';
         return '<div class="cs-item' + (past ? ' past' : '') + '"><p class="cs-when">' + esc(csWhen(c)) + '</p>' +
           (c.title ? '<p class="cs-title">' + esc(c.title) + '</p>' : '') + '<div class="meet-acts">' + acts + '</div>' +
-          (editing ? '<div class="actions cs-admin"><button class="ghost small" type="button" data-csedit="' + esc(c.id) + '">Изменить</button><button class="ghost small" type="button" data-csdel="' + esc(c.id) + '">Удалить</button></div>' : '') +
+          (editing && c.auto ? '<div class="actions cs-admin"><button class="ghost small" type="button" data-csauto="' + esc(c.day) + '">Добавить тему и ссылку</button></div>' : '') +
+          (editing && !c.auto ? '<div class="actions cs-admin"><button class="ghost small" type="button" data-csedit="' + esc(c.id) + '">Изменить</button><button class="ghost small" type="button" data-csdel="' + esc(c.id) + '">Удалить</button></div>' : '') +
           (editing && cdraft && cdraft.id === c.id ? csEditor() : '') + '</div>';
       }).join('') + '</div>';
     }
@@ -1571,6 +1598,7 @@
     if (t.id === 'cs-save') return csSave(t);
     if (t.id === 'cs-cancel') { cdraft = null; return renderWeeks(); }
     if (t.dataset.csedit) return csStart(t.dataset.csedit);
+    if (t.dataset.csauto) { cdraft = { id: null, day: t.dataset.csauto, time: CURATOR_TIME, title: '', live: '', rec: '' }; return renderWeeks(); }
     if (t.dataset.csdel) return csDelete(t.dataset.csdel, t);
     if (t.id === 'pe-save') return savePractice();
     if (t.id === 'pe-cancel') { pdraft = null; return renderPractice(); }

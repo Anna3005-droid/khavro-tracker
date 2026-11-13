@@ -29,7 +29,8 @@ create table if not exists private.push_subs (
 insert into private.settings (key, value) values
   ('cron_key', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')),
   ('program_start', '2026-11-05'),
-  ('lesson_time', '09:00')
+  ('lesson_time', '09:00'),
+  ('curator_time', '18:00')
 on conflict (key) do nothing;
 
 -- Какие напоминания пора отправить. Вызывает только сайт по секретному ключу из cron.
@@ -69,6 +70,14 @@ begin
              (c.day + c.time::time) at time zone 'Europe/Kyiv', c.time, c.live_url
       from public.curator_sessions c
       where c.time ~ '^[0-9]{1,2}:[0-9]{2}$'
+      union all
+      -- Постоянное занятие с куратором: каждый понедельник недель 2–8, если в этот день не задано своё
+      select 'cs-auto-' || mon, 'curator', null, ''::text,
+             (mon + ct) at time zone 'Europe/Kyiv', to_char(ct, 'HH24:MI'), ''
+      from (select (date_trunc('week', st)::date + (wk - 1) * 7) as mon,
+                   coalesce(nullif((select value from private.settings where key = 'curator_time'), ''), '18:00')::time as ct
+            from generate_series(2, 8) as wk) m
+      where not exists (select 1 from public.curator_sessions c2 where c2.day = m.mon)
     ), due as (
       select ev.*, 'day' as kind from ev
         where now() >= starts_at - interval '24 hours' and now() < starts_at - interval '22 hours'
