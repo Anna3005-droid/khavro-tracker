@@ -303,7 +303,7 @@
     h += meetingBlock();
     h += curatorBlock();
     h += helpBox('w');
-    h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div><div class="theme"><h3>Результат модуля</h3><p>' + M[2] + '</p></div></div>';
+    h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div></div>';
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
       (isRec() ? chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Запись встречи с Татьяной', 'Доступна через сутки после эфира', 'meet')
         : chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной', '', 'meet')) +
