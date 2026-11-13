@@ -12,3 +12,14 @@ h1 em, h2 em, .mod-head h2 em, .ah-title em { color: var(--acc2); }
 .pc-done { background: var(--acc2); color: var(--on-acc2); }
 .orn { color: var(--acc2); }
 .sheet::before, .sheet::after { border-color: var(--acc2); }
+
+/* Второстепенные кнопки — лёгкие белые с прозрачностью, чтобы не было всё синее.
+   Главные действия (.btn, .btnlink без ghostlink) остаются синими. */
+:root { --glass: rgba(255, 255, 255, 0.08); --glass-hover: rgba(255, 255, 255, 0.14); --glass-line: rgba(255, 255, 255, 0.26); }
+.ghost, .ghost.gold, .btnlink.ghostlink, .tool-go, .mlink, .chip:not([aria-pressed="true"]) {
+  background: var(--glass); border-color: var(--glass-line); color: #fff;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.ghost:hover, .btnlink.ghostlink:hover, .tool-go:hover, .mlink:hover, .chip:not([aria-pressed="true"]):hover { background: var(--glass-hover); }
+.chip:not([aria-pressed="true"]) small { color: rgba(255, 255, 255, 0.6); }
+.ghost.danger[data-arm="1"] { background: var(--warn); color: var(--on-gold); border-color: var(--warn); }
