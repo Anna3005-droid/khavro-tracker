@@ -307,7 +307,10 @@
       (feature('buddy') ? chkRow('w-buddy', 'weeks.' + cur + '.buddy', w.buddy, 'Созвон с бадди', '', 'buddy') : '') +
       '</div>' + '</div>';
     var wnums = openNums(cur + 1).filter(function (n) { return practiceAccess(cur + 1, n) === 'ok'; });
-    h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + (wnums.length ? '' : '<p class="scale" style="margin:0">Практики этой недели появятся после встречи с Татьяной.</p>') + wnums.map(function (n) {
+    h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + weekVideos(cur).map(function (v) {
+      var d = !!(w.vids && w.vids[v.id]);
+      return '<div class="crow has-ico"><span class="ci">' + svg('records') + '</span><span>' + esc(v.title) + '<small>Видео-техника' + (d ? ' · ✓ выполнено' : '') + (VIEW ? '' : ' · <button class="plink" type="button" data-govid="1">Смотреть →</button>') + '</small></span></div>';
+    }).join('') + (wnums.length || weekVideos(cur).length ? '' : '<p class="scale" style="margin:0">Практики этой недели появятся после встречи с Татьяной.</p>') + wnums.map(function (n) {
       var j = n - 1, p = practices[pkey(cur + 1, n)];
       var title = esc((p && p.title) || 'Практика');
       var go = VIEW ? '' : '<button class="plink" type="button" data-gopr="' + j + '">Открыть практику →</button>';
@@ -889,12 +892,30 @@
   }
 
   var openCards = {};
+  // ---------- Видео-техники недели ----------
+  // Видны сразу, без открытия админом. Ключ — номер недели с нуля (1 = неделя 2).
+  // Участник отмечает «✓ Выполнено» (S.weeks[i].vids[id]); в кольцо прогресса не входит.
+  var WEEK_VIDEOS = {
+    1: [{ id: 'krutilka', title: 'Техника «Крутилка»', yt: 'eCtOjSd5Qik' }]
+  };
+  var playing = {};
+  function weekVideos(i) { return WEEK_VIDEOS[i] || []; }
+  function videoCard(v, i) {
+    var w = S.weeks[i], done = !!(w.vids && w.vids[v.id]), key = i + '-' + v.id;
+    var player = playing[key]
+      ? '<iframe class="vid-frame" src="https://www.youtube-nocookie.com/embed/' + v.yt + '?autoplay=1&rel=0" title="' + esc(v.title) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'
+      : '<button class="vid-thumb" type="button" data-play="' + esc(key) + '" aria-label="Смотреть: ' + esc(v.title) + '"><img src="https://i.ytimg.com/vi/' + v.yt + '/hqdefault.jpg" alt="" loading="lazy"><span class="vid-play">▶</span></button>';
+    return '<article class="pc vid' + (done ? ' done' : '') + '"><div class="pc-body"><div class="pc-top"><p class="pc-eyebrow">Видео-техника</p>' + (done ? '<span class="pc-done">✓ Выполнено</span>' : '') + '</div>' +
+      '<h3 class="pc-title">' + esc(v.title) + '</h3>' + player +
+      (VIEW ? '' : '<div class="actions"><button class="' + (done ? 'ghost' : 'btn') + '" type="button" data-vdone="' + esc(v.id) + '">' + (done ? 'Снять отметку' : 'Отметить выполненной') + '</button>' +
+        '<a class="plink" href="https://youtu.be/' + v.yt + '" target="_blank" rel="noopener">Открыть в YouTube ↗</a></div>') + '</div></article>';
+  }
   function renderPractice() {
     var wk = cur + 1, list = weekPractices(wk), w = S.weeks[cur], h = '';
     var doneN = w.practices.filter(function (v, j) { return v && practiceAccess(wk, j + 1) === 'ok'; }).length, ofN = practicesOpenTo(cur);
     h += '<div class="chips">' + MODULES.map(function (x, i) {
       var n = openNums(i + 1).filter(function (k) { return admin || practiceAccess(i + 1, k) === 'ok'; }).length;
-      return '<button class="chip pchip' + (n ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + (n ? n + ' ' + practWord(n) : 'скоро') + '</small></button>';
+      return '<button class="chip pchip' + (n || weekVideos(i).length ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + (n ? n + ' ' + practWord(n) : weekVideos(i).length ? 'видео' : 'скоро') + '</small></button>';
     }).join('') + '</div>';
     h += '<div class="mod-head"><h2>Модуль ' + wk + ' · <em>' + MODULES[cur][0] + '</em></h2>' +
       (ofN ? '<div class="mod-prog"><span>Выполнено <b>' + doneN + '</b> из ' + ofN + '</span><span class="thin" role="img" aria-label="Выполнено ' + doneN + ' из ' + ofN + '"><i style="width:' + (doneN / ofN * 100).toFixed(0) + '%"></i></span></div>' : '') + '</div>';
@@ -906,8 +927,9 @@
       return admin ? !!p || (pdraft && pdraft.week === wk && pdraft.num === n) : !!(p && p.is_open) && practiceAccess(wk, n) === 'ok';
     });
     var free = [1, 2, 3].filter(function (n) { return !practices[pkey(wk, n)] && !(pdraft && pdraft.week === wk && pdraft.num === n); });
-    h += '<div class="plist">' + shown.map(function (n, k) { return practiceCard(list[n - 1], n - 1, k); }).join('') + '</div>';
-    if (!shown.length && !admin) h += '<div class="empty">Практики этой недели появятся после встречи с Татьяной.</div>';
+    var vids = weekVideos(cur);
+    h += '<div class="plist">' + vids.map(function (v) { return videoCard(v, cur); }).join('') + shown.map(function (n, k) { return practiceCard(list[n - 1], n - 1, k); }).join('') + '</div>';
+    if (!shown.length && !vids.length && !admin) h += '<div class="empty">Практики этой недели появятся после встречи с Татьяной.</div>';
     if (admin && free.length) h += '<div class="actions"><button class="ghost gold" type="button" data-pedit="' + free[0] + '">+ Добавить практику</button></div>';
     $('practice-body').innerHTML = h;
   }
@@ -1493,6 +1515,9 @@
     if (t.dataset.goplan) { show('start'); var pb = $('plan-block'); if (pb) pb.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
     if (t.dataset.pcard) { openCards[t.dataset.pcard] = !openCards[t.dataset.pcard]; return renderPractice(); }
     if (t.dataset.gopr != null) { e.preventDefault(); return goPractice(Number(t.dataset.gopr)); }
+    if (t.dataset.play) { playing[t.dataset.play] = true; return renderPractice(); }
+    if (t.dataset.vdone) { var vw = S.weeks[cur]; if (!vw.vids) vw.vids = {}; vw.vids[t.dataset.vdone] = vw.vids[t.dataset.vdone] ? 0 : 1; touch(); renderPractice(); if (vw.vids[t.dataset.vdone]) toast('Отмечено ✓'); return; }
+    if (t.dataset.govid) { show('practice'); return; }
     if (t.dataset.tdaily) { var di = todayIndex(); if (di >= 0) { S.weeks[cur].daily[t.dataset.tdaily][di] = 1; touch(); renderWeeks(); toast('Отмечено ✓'); } return; }
     if (t.dataset.ttick) { S.weeks[cur][t.dataset.ttick] = 1; touch(); renderWeeks(); toast('Отмечено ✓'); return; }
     if (t.dataset.tfocus) { var fe = $(t.dataset.tfocus); if (fe) { fe.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(function () { fe.focus(); }, 350); } return; }
