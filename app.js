@@ -952,6 +952,7 @@
     }]
   };
   var playing = {};
+  var SHOW_VIDEO_TEXT = false;
   function weekVideos(i) { return WEEK_VIDEOS[i] || []; }
   function videoCard(v, i) {
     var w = S.weeks[i], done = !!(w.vids && w.vids[v.id]), key = i + '-' + v.id;
@@ -959,9 +960,10 @@
       ? '<iframe class="vid-frame" src="https://www.youtube-nocookie.com/embed/' + v.yt + '?autoplay=1&rel=0" title="' + esc(v.title) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'
       : '<button class="vid-thumb" type="button" data-play="' + esc(key) + '" aria-label="Смотреть: ' + esc(v.title) + '"><img src="https://i.ytimg.com/vi/' + v.yt + '/hqdefault.jpg" alt="" loading="lazy"><span class="vid-play">▶</span></button>';
     return '<article class="pc vid' + (done ? ' done' : '') + '"><div class="pc-body"><div class="pc-top"><p class="pc-eyebrow">Видео-техника</p>' + (done ? '<span class="pc-done">✓ Выполнено</span>' : '') + '</div>' +
-      '<h3 class="pc-title">' + esc(v.title) + '</h3>' + (v.about ? '<p class="pc-sum">' + esc(v.about) + '</p>' : '') + player +
-      (v.steps ? '<h4 class="vid-h">Как выполнять</h4><ol class="steps">' + v.steps.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '') +
-      (v.note ? '<p class="vid-note"><b>Важно:</b> ' + esc(v.note) + '</p>' : '') +
+      // Описания (about / steps / note) пока не показываем: только название и видео. Вернуть — SHOW_VIDEO_TEXT = true.
+      '<h3 class="pc-title">' + esc(v.title) + '</h3>' + (SHOW_VIDEO_TEXT && v.about ? '<p class="pc-sum">' + esc(v.about) + '</p>' : '') + player +
+      (SHOW_VIDEO_TEXT && v.steps ? '<h4 class="vid-h">Как выполнять</h4><ol class="steps">' + v.steps.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '') +
+      (SHOW_VIDEO_TEXT && v.note ? '<p class="vid-note"><b>Важно:</b> ' + esc(v.note) + '</p>' : '') +
       (VIEW ? '' : '<div class="actions"><button class="' + (done ? 'ghost' : 'btn') + '" type="button" data-vdone="' + esc(v.id) + '">' + (done ? 'Снять отметку' : 'Отметить выполненной') + '</button>' +
         '<a class="plink" href="https://youtu.be/' + v.yt + '" target="_blank" rel="noopener">Открыть в YouTube ↗</a></div>') + '</div></article>';
   }
