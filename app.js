@@ -562,7 +562,7 @@
   // «Расписание недели» под заголовком недели: даты и время эфиров
   function scheduleBlock() {
     var rows = [], md = meetingDate(cur);
-    weekSessions(cur).forEach(function (c) { rows.push({ k: c.day + c.time, d: new Date(c.day + 'T00:00:00'), t: c.time, what: 'Занятие с куратором' + (c.title ? ': ' + esc(c.title) : '') }); });
+    weekSessions(cur).forEach(function (c) { rows.push({ k: c.day + c.time, d: new Date(c.day + 'T00:00:00'), t: c.time, what: 'Занятие с куратором' }); });
     if (md) rows.push({ k: ymd(md) + LESSON_TIME, d: md, t: LESSON_TIME, what: 'Урок с Татьяной' });
     if (!rows.length) return '';
     rows.sort(function (x, y) { return x.k.localeCompare(y.k); });
