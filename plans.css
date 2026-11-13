@@ -98,3 +98,7 @@ select.plan-select.plan-none { color: var(--warn); }
 .sched-row.past { opacity: .55; }
 .sched-row.now .sched-day { color: var(--ink); font-weight: 500; }
 .sched-plain { background: none; border: 0; padding: 0; margin: 0; }
+.rec-vids { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-left: 40px; }
+.rec-vids .btnlink { margin: 0; }
+.rec-none { padding-left: 40px; margin: 0 0 8px; }
+.rec-head h3.rec-title { line-height: 1.15; }

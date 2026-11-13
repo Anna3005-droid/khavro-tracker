@@ -757,31 +757,24 @@
   }
 
   // ---------- Вкладка «Записи»: все записи эфиров в одном месте ----------
-  // Записи по порядку программы: неделя → модуль → тема → урок с Татьяной и занятия с кураторами.
-  // Показываются недели до текущей включительно; у прошедших эфиров без записи — «Запись появится позже».
+  // Записи: по порядку программы — модуль, тема и видео. Без дат и описаний.
   function renderRecords() {
-    var today = ymd(new Date()), last = S ? currentWeek(S) : 7;
-    var when = function (d) { if (!d) return ''; var t = d.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }); return t.charAt(0).toUpperCase() + t.slice(1); };
-    var btns = function (list) {
-      return list.map(function (u, k) { return '<a class="btnlink ghostlink" href="' + esc(u) + '" target="_blank" rel="noopener">▶ ' + (list.length > 1 ? 'Часть ' + (k + 1) : 'Смотреть') + '</a>'; }).join('');
+    var last = S ? currentWeek(S) : 7;
+    var btns = function (list, label) {
+      return list.map(function (u, k) { return '<a class="btnlink ghostlink" href="' + esc(u) + '" target="_blank" rel="noopener">▶ ' + label + (list.length > 1 ? ' · часть ' + (k + 1) : '') + '</a>'; }).join('');
     };
-    var row = function (icon, title, date, recs, pastNoRec) {
-      return '<div class="rec-item' + (recs.length ? '' : ' wait') + '"><span class="ci">' + svg(icon) + '</span><div class="rec-text"><b>' + title + '</b><small>' + date + '</small></div>' +
-        '<div class="rec-acts">' + (recs.length ? btns(recs) : '<span class="meet-wait">' + (pastNoRec ? 'Запись появится позже' : 'Эфир ещё впереди') + '</span>') + '</div></div>';
-    };
-    var h = '<h2>Записи эфиров</h2><p class="note">По неделям программы: модуль, тема, урок с Татьяной и занятия с кураторами.</p>';
+    var h = '<h2>Записи эфиров</h2>';
     for (var i = 0; i <= last; i++) {
-      var md = meetingDate(i), m = meetings[i + 1] || {};
-      var rows = [{ k: (md ? ymd(md) : '') + ' 09:00', html: row('meet', 'Урок с Татьяной', when(md), recLinks(m.record_url).filter(safeLink), md && ymd(md) <= today) }];
+      var m = meetings[i + 1] || {}, vids = [], lesson = recLinks(m.record_url).filter(safeLink);
+      if (lesson.length) vids.push(btns(lesson, 'Урок с Татьяной'));
       weekSessions(i).forEach(function (c) {
-        rows.push({ k: c.day + ' ' + (c.time || '99:99'), html: row('chat', 'Занятие с куратором' + (c.title ? ': ' + esc(c.title) : ''), when(new Date(c.day + 'T00:00:00')) + (c.time ? ', ' + esc(c.time) : ''), recLinks(c.record_url).filter(safeLink), c.day <= today) });
+        var cr = recLinks(c.record_url).filter(safeLink);
+        if (cr.length) vids.push(btns(cr, 'Занятие с куратором' + (c.title ? ': ' + esc(c.title) : '')));
       });
-      rows = rows.sort(function (x, y) { return x.k.localeCompare(y.k); }).map(function (r) { return r.html; });
-      var rng = weekRange(i);
-      h += '<section class="rec-week"><div class="rec-head"><span class="rec-num">' + (i + 1) + '</span><div><p class="eyebrow">Неделя ' + (i + 1) + (rng ? ' · ' + rng : '') + ' · Модуль ' + (i + 1) + '</p>' +
-        '<h3 class="rec-title">' + esc(MODULES[i][0]) + '</h3><p class="rec-theme">' + esc(MODULES[i][1]) + '</p></div></div>' + rows.join('') + '</section>';
+      h += '<section class="rec-week"><div class="rec-head"><span class="rec-num">' + (i + 1) + '</span><div><p class="eyebrow">Модуль ' + (i + 1) + '</p>' +
+        '<h3 class="rec-title">' + esc(MODULES[i][0]) + '</h3></div></div>' +
+        (vids.length ? '<div class="rec-vids">' + vids.join('') + '</div>' : '<p class="meet-wait rec-none">Запись появится позже</p>') + '</section>';
     }
-    if (last < 7) h += '<p class="note">Недели ' + (last + 2) + '–8 появятся здесь по ходу программы.</p>';
     $('records').innerHTML = h;
   }
 
