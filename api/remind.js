@@ -71,6 +71,27 @@ async function sendPushes(info, items, cronKey) {
   return { pushed: ok, failed: fail, dropped: dead.size };
 }
 
+const PLAN_NAMES = { rec: 'Записи', flow: 'Поток', deep: 'Глубина', vip: 'VIP' };
+// Новые участники — push только тому администратору, кто включил «Присылать мне»
+async function sendSignups(info, cronKey) {
+  const list = info.signups || [], subs = info.signup_subs || [];
+  if (!list.length || !subs.length || !info.vapid_public || !info.vapid_private) return { sent: 0 };
+  const webpush = require('web-push');
+  webpush.setVapidDetails(SITE_URL, info.vapid_public, info.vapid_private);
+  const dead = new Set(); let ok = 0;
+  for (const u of list) {
+    const who = [u.name || u.email || 'Без имени', PLAN_NAMES[u.plan] || ''].filter(Boolean).join(' · ');
+    const payload = JSON.stringify({ title: 'Новый участник в трекере', body: who, url: SITE_URL, tag: 'signup-' + (u.email || u.name) });
+    await Promise.all(subs.map(async (sub) => {
+      if (dead.has(sub.endpoint)) return;
+      try { await webpush.sendNotification(sub, payload, { TTL: 86400 }); ok++; }
+      catch (e) { if (e && (e.statusCode === 404 || e.statusCode === 410)) dead.add(sub.endpoint); }
+    }));
+  }
+  if (dead.size) await rpc('drop_push_subs', { k: cronKey, endpoints: Array.from(dead) });
+  return { sent: ok };
+}
+
 function message(it) {
   const live = safeLink(it.live_url);
   const when = it.kind === 'day' ? 'Завтра, ' + dayLabel(it.starts_at) + ', в ' + esc(it.time) + ' по Киеву' : 'Через час, в ' + esc(it.time) + ' по Киеву';
@@ -100,7 +121,8 @@ module.exports = async (req, res) => {
     const due = await rpc('due_reminders', { k: String(cronKey) });
     if (!due.ok) return res.status(403).json({ error: 'forbidden' });
     const info = due.json || {}, chat = info.chat, items = info.items || [];
-    if (!items.length) return res.status(200).json({ sent: 0 });
+    const signed = await sendSignups(info, String(cronKey)).catch((e) => ({ error: String(e && e.message || e) }));
+    if (!items.length) return res.status(200).json({ sent: 0, signups: signed });
     const push = await sendPushes(info, items, String(cronKey)).catch((e) => ({ error: String(e && e.message || e) }));
     const out = [];
     if (chat && botToken) {

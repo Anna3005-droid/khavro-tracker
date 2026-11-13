@@ -26,6 +26,23 @@ create table if not exists private.push_subs (
   created_at timestamptz not null default now()
 );
 
+-- Новые участники: очередь для уведомления одному администратору (кто нажал «Присылать мне»)
+create table if not exists private.signup_queue (
+  user_id uuid primary key,
+  created_at timestamptz not null default now(),
+  sent boolean not null default false
+);
+create or replace function private.on_tracker_created() returns trigger
+language plpgsql security definer set search_path = public, private as $$
+begin
+  insert into private.signup_queue (user_id) values (new.user_id) on conflict do nothing;
+  return new;
+end;
+$$;
+drop trigger if exists tracker_created_notify on public.trackers;
+create trigger tracker_created_notify after insert on public.trackers
+for each row execute function private.on_tracker_created();
+
 insert into private.settings (key, value) values
   ('cron_key', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')),
   ('program_start', '2026-11-05'),
@@ -43,6 +60,9 @@ declare
   lt time;
   chat text;
   subs jsonb;
+  signups jsonb := '[]'::jsonb;
+  signup_subs jsonb := '[]'::jsonb;
+  notify_uid uuid;
 begin
   if k is null or k <> (select value from private.settings where key = 'cron_key') then
     raise exception 'forbidden';
@@ -53,8 +73,27 @@ begin
     select jsonb_agg(jsonb_build_object('endpoint', ps.endpoint, 'keys', jsonb_build_object('p256dh', ps.p256dh, 'auth', ps.auth)))
     from private.push_subs ps
   ), '[]'::jsonb);
+  -- Новые участники — только тому администратору, кто включил уведомления
+  notify_uid := nullif((select value from private.settings where key = 'signup_notify_user'), '')::uuid;
+  if notify_uid is not null then
+    signup_subs := coalesce((
+      select jsonb_agg(jsonb_build_object('endpoint', ps.endpoint, 'keys', jsonb_build_object('p256dh', ps.p256dh, 'auth', ps.auth)))
+      from private.push_subs ps where ps.user_id = notify_uid
+    ), '[]'::jsonb);
+    with q as (
+      update private.signup_queue sq set sent = true
+      where sq.sent = false and sq.user_id <> notify_uid
+      returning sq.user_id
+    )
+    select coalesce(jsonb_agg(jsonb_build_object(
+      'name', coalesce(t.data->'start'->>'name', ''), 'email', coalesce(t.email, ''), 'plan', coalesce(t.data->'start'->>'plan', ''))), '[]'::jsonb)
+      into signups
+    from q left join public.trackers t on t.user_id = q.user_id;
+  end if;
   if chat is null and (jsonb_array_length(subs) = 0 or nullif((select value from private.settings where key = 'vapid_private'), '') is null) then
-    return jsonb_build_object('chat', null, 'items', res, 'subs', '[]'::jsonb);
+    return jsonb_build_object('chat', null, 'items', res, 'subs', '[]'::jsonb, 'signups', signups, 'signup_subs', signup_subs,
+      'vapid_public', (select value from private.settings where key = 'vapid_public'),
+      'vapid_private', (select value from private.settings where key = 'vapid_private'));
   end if;
   st := (select value from private.settings where key = 'program_start')::date;
   lt := (select value from private.settings where key = 'lesson_time')::time;
@@ -93,7 +132,7 @@ begin
         'time', r.hhmm, 'starts_at', r.starts_at, 'live_url', r.live_url);
     end if;
   end loop;
-  return jsonb_build_object('chat', chat, 'items', res, 'subs', subs,
+  return jsonb_build_object('chat', chat, 'items', res, 'subs', subs, 'signups', signups, 'signup_subs', signup_subs,
     'vapid_public', (select value from private.settings where key = 'vapid_public'),
     'vapid_private', (select value from private.settings where key = 'vapid_private'));
 end;
@@ -126,7 +165,9 @@ begin
     'cron', exists (select 1 from cron.job where jobname = 'tracker-reminders'),
     'last', (select max(sent_at) from private.reminders_sent),
     'push_ready', exists (select 1 from private.settings where key = 'vapid_public' and value <> ''),
-    'push_subs', (select count(*) from private.push_subs)
+    'push_subs', (select count(*) from private.push_subs),
+    'signup_notify_me', (select value from private.settings where key = 'signup_notify_user') = auth.uid()::text,
+    'signup_notify_set', nullif((select value from private.settings where key = 'signup_notify_user'), '') is not null
   );
 end;
 $$;
@@ -187,6 +228,20 @@ end;
 $$;
 revoke all on function public.push_test_bundle() from public;
 grant execute on function public.push_test_bundle() to authenticated;
+
+-- Администратор включает (или выключает) уведомления о новых участниках для себя
+create or replace function public.set_signup_notify(p_on boolean) returns void
+language plpgsql security definer set search_path = public, private as $$
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  insert into private.settings (key, value) values ('signup_notify_user', case when p_on then auth.uid()::text else '' end)
+    on conflict (key) do update set value = excluded.value;
+  -- старые регистрации не присылаем: отмечаем их отправленными
+  if p_on then update private.signup_queue set sent = true where sent = false; end if;
+end;
+$$;
+revoke all on function public.set_signup_notify(boolean) from public;
+grant execute on function public.set_signup_notify(boolean) to authenticated;
 
 -- Сайт убирает подписки, которые телефон больше не принимает
 create or replace function public.drop_push_subs(k text, endpoints text[]) returns void

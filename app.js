@@ -1330,6 +1330,8 @@
     h += '<p class="rem-st"><b>На телефон:</b> ' + (remSt.push_ready ? 'включили ' + (remSt.push_subs || 0) + ' ' + devWord(remSt.push_subs || 0) + '. Участники включают их сами на вкладке «Старт».' : 'настраиваются…') +
       (remSt.cron ? '' : ' · <span class="down">расписание не запущено</span>') + '</p>';
     if (remSt.push_ready) h += '<div class="actions"><button class="ghost gold small" type="button" id="push-test">Отправить тестовое уведомление мне</button></div>';
+    if (remSt.push_ready) h += '<p class="rem-st"><b>Новые участники:</b> ' + (remSt.signup_notify_me ? 'уведомления приходят вам ✓' : remSt.signup_notify_set ? 'уведомления получает другой администратор' : 'уведомления выключены') + '</p>' +
+      '<div class="actions"><button class="ghost small" type="button" id="signup-notify" data-on="' + (remSt.signup_notify_me ? '0' : '1') + '">' + (remSt.signup_notify_me ? 'Выключить' : 'Присылать мне о новых участниках') + '</button></div>';
     h += '<p class="rem-st"><b>В Telegram-группу</b> (по желанию): ' + (remSt.chat_id ? '✓ <b>' + esc(remSt.chat_title || remSt.chat_id) + '</b>' : 'группа не выбрана') + '</p>';
     if (remChats) {
       h += remChats.length ? '<div class="rem-chats">' + remChats.map(function (c) {
@@ -1523,6 +1525,16 @@
     if (t.id === 'rem-find') return remFind(t);
     if (t.id === 'rem-test') return remTest(t);
     if (t.id === 'push-test') return pushTest(t);
+    if (t.id === 'signup-notify') {
+      var on = t.dataset.on === '1'; t.disabled = true;
+      sb.rpc('set_signup_notify', { p_on: on }).then(function (r) {
+        t.disabled = false;
+        if (r.error) return toast(/set_signup_notify/.test(r.error.message || '') ? 'Выполните обновлённый reminders.sql в Supabase' : 'Не удалось: ' + r.error.message, 'err');
+        remSt.signup_notify_me = on; remSt.signup_notify_set = on; renderPeople();
+        toast(on ? 'О новых участниках будет приходить вам ✓' : 'Уведомления о новых участниках выключены');
+      });
+      return;
+    }
     if (t.dataset.remchat) return remChoose(t.dataset.remchat, t.dataset.remtitle);
     if (t.id === 'logout') { sb.auth.signOut(); return; }
     if (t.closest('#tabs') && t.dataset.tab) return show(t.dataset.tab);
