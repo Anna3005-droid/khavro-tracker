@@ -99,3 +99,4 @@
 .vid-h { margin: 4px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--acc2, var(--gold)); }
 .vid-note { margin: 4px 0 12px; font-size: 14px; color: var(--muted); }
 .vid-note b { color: var(--ink); font-weight: 500; }
+.vid-files { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; } .vid-files .btnlink { margin: 0; }

@@ -939,6 +939,7 @@
       ]
     }, {
       id: 'dpdg', title: 'Десенсибилизация и проработка травм движением глаз', yt: '9QYlp6WLPA0',
+      files: [{ name: 'Что такое ДПДГ', url: 'files/dpdg.pdf' }],
       about: 'Помогает снизить эмоциональный заряд тяжёлых воспоминаний с помощью движений глаз, чтобы прошлое перестало так сильно отзываться.',
       steps: [
         'Выберите воспоминание, которое до сих пор вызывает у вас неприятные чувства.',
@@ -964,6 +965,7 @@
       '<h3 class="pc-title">' + esc(v.title) + '</h3>' + (SHOW_VIDEO_TEXT && v.about ? '<p class="pc-sum">' + esc(v.about) + '</p>' : '') + player +
       (SHOW_VIDEO_TEXT && v.steps ? '<h4 class="vid-h">Как выполнять</h4><ol class="steps">' + v.steps.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '') +
       (SHOW_VIDEO_TEXT && v.note ? '<p class="vid-note"><b>Важно:</b> ' + esc(v.note) + '</p>' : '') +
+      (v.files ? '<div class="vid-files">' + v.files.map(function (f) { return '<a class="btnlink ghostlink" href="' + esc(f.url) + '" target="_blank" rel="noopener">📄 ' + esc(f.name) + '</a>'; }).join('') + '</div>' : '') +
       (VIEW ? '' : '<div class="actions"><button class="' + (done ? 'ghost' : 'btn') + '" type="button" data-vdone="' + esc(v.id) + '">' + (done ? 'Снять отметку' : 'Отметить выполненной') + '</button>' +
         '<a class="plink" href="https://youtu.be/' + v.yt + '" target="_blank" rel="noopener">Открыть в YouTube ↗</a></div>') + '</div></article>';
   }
