@@ -76,3 +76,14 @@ select.plan-select.plan-none { color: var(--warn); }
 .rec-acts { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }
 .rec-acts .btnlink { margin: 0; }
 .meet.push { margin: 0 0 18px; }
+/* Записи: структура по модулям */
+.rec-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; margin-bottom: 10px; }
+.rec-num { font-family: var(--display); font-size: 40px; line-height: .9; color: var(--acc2, var(--gold)); min-width: 28px; text-align: center; }
+.rec-head .eyebrow { margin: 2px 0 4px; }
+.rec-title { margin: 0 0 4px; font-family: var(--display); font-weight: 500; font-size: 24px; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.rec-title::before { display: none; }
+.rec-theme { margin: 0; font-size: 13px; color: var(--muted); }
+.rec-item.wait { opacity: .75; }
+.rec-week { padding-bottom: 6px; border-bottom: 1px solid var(--line-soft); margin-bottom: 18px; }
+.rec-title { line-height: 1.15; }
+.rec-num { font-family: var(--body); font-weight: 600; font-size: 30px; line-height: 1.1; }
