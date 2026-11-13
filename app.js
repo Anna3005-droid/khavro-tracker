@@ -344,13 +344,13 @@
       var wd = day ? day.toLocaleDateString('ru-RU', { weekday: 'short' }) : 'ночь';
       return '<label class="night" for="w-n' + n + '"><b>' + wd + '</b><input class="chk moon" type="checkbox" id="w-n' + n + '" data-bind="weeks.' + cur + '.nights.' + n + '"' + (w.nights[n] ? ' checked' : '') + dis() + ' aria-label="' + (day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Ночь ' + (n + 1)) + '">' + (day ? day.getDate() : n + 1) + '</label>';
     }).join('') + '</div><p class="scale">Отмечайте ночи, когда вы слушали протокол перед сном.</p></div>';
-    h += '<div class="block"><h3>Действие недели</h3><input type="text" id="w-action" data-bind="weeks.' + cur + '.action" value="' + esc(w.action) + '" placeholder="Например: написать 3 клиентам"' + dis() + '></div>';
+    h += '<div class="block"><h3>Действие недели</h3><p class="field-hint">Один конкретный шаг к деньгам на эту неделю.</p><input type="text" id="w-action" data-bind="weeks.' + cur + '.action" value="' + esc(w.action) + '" placeholder="Например: написать 3 клиентам"' + dis() + '></div>';
     if (SHOW_STATE) h += '<div class="block"><h3>Состояние: энергия и ясность</h3><div class="scales">' +
       '<div class="week"><span>В начале недели</span>' + dotsRow('weeks.' + cur + '.s0', w.s0) + '</div>' +
       '<div class="week"><span>В конце недели</span>' + dotsRow('weeks.' + cur + '.s1', w.s1) + '</div>' +
       '</div><p class="scale">От 1, когда нет сил, до 5, когда ясно и легко.</p></div>';
-    h += '<div class="block"><h3>Главный инсайт</h3><textarea id="w-insight" data-bind="weeks.' + cur + '.insight" placeholder="Например: я боюсь поднимать цену, потому что…"' + dis() + '>' + esc(w.insight) + '</textarea></div>';
-    h += '<div class="block"><h3>Итог недели</h3><textarea id="w-recap" data-bind="weeks.' + cur + '.recap" placeholder="Например: подняла цену, пришёл новый клиент"' + dis() + '>' + esc(w.recap) + '</textarea></div>';
+    h += '<div class="block"><h3>Главный инсайт</h3><p class="field-hint">Главное, что вы поняли о себе и деньгах за неделю.</p><textarea id="w-insight" data-bind="weeks.' + cur + '.insight" placeholder="Например: я боюсь поднимать цену, потому что…"' + dis() + '>' + esc(w.insight) + '</textarea></div>';
+    h += '<div class="block"><h3>Итог недели</h3><p class="field-hint">Что изменилось и что берёте дальше.</p><textarea id="w-recap" data-bind="weeks.' + cur + '.recap" placeholder="Например: подняла цену, пришёл новый клиент"' + dis() + '>' + esc(w.recap) + '</textarea></div>';
     $('weeks').innerHTML = h; lastDone = null; updDone();
     var chip = document.querySelector('.chip[data-w="' + cur + '"]'), box = $('chips');
     if (chip && box) box.scrollLeft = Math.max(0, chip.offsetLeft - 16);
