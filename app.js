@@ -609,7 +609,7 @@
     return '<div class="meet-edit cs-edit">' +
       '<div class="row"><label class="f" for="cs-day">Дата<input type="date" id="cs-day" data-cdraft="day" value="' + esc(d.day) + '"></label>' +
       '<label class="f" for="cs-time">Время по Киеву<input type="time" id="cs-time" data-cdraft="time" value="' + esc(d.time) + '"></label></div>' +
-      '<label class="f" for="cs-title">Тема<input type="text" id="cs-title" data-cdraft="title" value="' + esc(d.title) + '" placeholder="О чём занятие"></label>' +
+      '<label class="f" for="cs-title">Тема коротко, 2–3 слова<input type="text" id="cs-title" data-cdraft="title" value="' + esc(d.title) + '" placeholder="Например: Кармический менеджмент" maxlength="40"></label>' +
       '<label class="f" for="cs-live">Ссылка на встречу<input type="text" id="cs-live" data-cdraft="live" value="' + esc(d.live) + '" placeholder="https://"></label>' +
       '<label class="f" for="cs-rec">Ссылки на запись, каждая с новой строки<textarea id="cs-rec" data-cdraft="rec" rows="2" placeholder="https://">' + esc(d.rec) + '</textarea></label>' +
       '<div class="actions"><button class="ghost gold small" type="button" id="cs-save">Сохранить занятие</button><button class="ghost small" type="button" id="cs-cancel">Отмена</button></div></div>';
@@ -769,7 +769,7 @@
       if (lesson.length) vids.push(btns(lesson, 'Урок с Татьяной'));
       weekSessions(i).forEach(function (c) {
         var cr = recLinks(c.record_url).filter(safeLink);
-        if (cr.length) vids.push(btns(cr, 'Занятие с куратором'));
+        if (cr.length) vids.push(btns(cr, 'Занятие с куратором' + (c.title ? ': ' + esc(c.title) : '')));
       });
       h += '<section class="rec-week"><div class="rec-head"><span class="rec-num">' + (i + 1) + '</span><div><p class="eyebrow">Модуль ' + (i + 1) + '</p>' +
         '<h3 class="rec-title">' + esc(MODULES[i][0]) + '</h3></div></div>' +
