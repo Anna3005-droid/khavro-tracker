@@ -327,7 +327,7 @@
     }).join('') + '</div></div>';
     var ws0 = weekStart(cur), nn = [0, 1, 2, 3, 4, 5, 6].slice(0, weekLen(cur));
     if (hasDaily(cur)) {
-      h += '<div class="block daily"><h3>Каждый день</h3><p class="scale" style="margin:0 0 12px">Чтобы держать ритм: каждый день проработка полярностей и эмоций. Отмечайте дни, когда сделали.</p>' +
+      h += '<div class="block daily"><h3>Каждый день</h3>' +
         DAILY.map(function (d) {
           var arr = (w.daily && w.daily[d.key]) || [];
           return '<div class="daily-row"><div class="daily-head"><b>' + esc(d.title) + '</b>' + (VIEW ? '' : '<a class="plink" href="' + esc(d.url) + '" target="_blank" rel="noopener">Открыть ↗</a>') + '</div>' +
@@ -728,29 +728,29 @@
     var link = function (u, label, ghost) { return '<a class="btnlink' + (ghost ? ' ghostlink' : '') + '" href="' + esc(u) + '" target="_blank" rel="noopener">' + label + '</a>'; };
     // Урок с Татьяной
     var md = meetingDate(cur), m = meetings[cur + 1] || {}, live = safeLink(m.live_url);
-    if (md && ymd(md) === today) item('meet', 'Сегодня урок с Татьяной в ' + LESSON_TIME, 'По Киеву', !isRec() && live ? link(live, 'Перейти на эфир') : '<span class="meet-wait">Ссылка появится перед встречей</span>');
-    else if (md && ymd(md) === tomorrow) item('meet', 'Завтра урок с Татьяной в ' + LESSON_TIME, 'По Киеву. Ссылка будет здесь и в напоминании', '');
+    if (md && ymd(md) === today) item('meet', 'Урок с Татьяной в ' + LESSON_TIME, '', !isRec() && live ? link(live, 'Перейти на эфир') : '<span class="meet-wait">Ссылка появится перед встречей</span>');
+    else if (md && ymd(md) === tomorrow) item('meet', 'Завтра урок с Татьяной в ' + LESSON_TIME, '', '');
     // Занятия с кураторами
     weekSessions(cur).concat(weekSessions(Math.min(7, cur + 1))).forEach(function (c) {
-      if (c.day === today) item('chat', 'Сегодня занятие с куратором' + (c.time ? ' в ' + esc(c.time) : ''), esc(c.title || 'По Киеву'), safeLink(c.live_url) ? link(c.live_url, 'Подключиться') : '<span class="meet-wait">Ссылка появится перед занятием</span>');
-      else if (c.day === tomorrow) item('chat', 'Завтра занятие с куратором' + (c.time ? ' в ' + esc(c.time) : ''), esc(c.title || ''), '');
+      if (c.day === today) item('chat', 'Занятие с куратором' + (c.time ? ' в ' + esc(c.time) : ''), '', safeLink(c.live_url) ? link(c.live_url, 'Подключиться') : '<span class="meet-wait">Ссылка появится перед занятием</span>');
+      else if (c.day === tomorrow) item('chat', 'Завтра занятие с куратором' + (c.time ? ' в ' + esc(c.time) : ''), '', '');
     });
     // Ежедневная практика
     var di = todayIndex();
     if (hasDaily(cur) && di >= 0) DAILY.forEach(function (d) {
-      if (!(w.daily && w.daily[d.key] && w.daily[d.key][di])) item('leaf', d.title + ' за сегодня', 'Каждый день, чтобы держать ритм', link(d.url, 'Открыть ↗', true) + '<button class="ghost gold small" type="button" data-tdaily="' + d.key + '">✓ Сделано</button>');
+      if (!(w.daily && w.daily[d.key] && w.daily[d.key][di])) item('leaf', d.title, '', link(d.url, 'Открыть ↗', true) + '<button class="ghost gold small" type="button" data-tdaily="' + d.key + '">✓ Сделано</button>');
     });
     // Неотмеченные встречи
-    if (md && ymd(md) <= today && !w.meet) item('meet', 'Были на уроке с Татьяной?', 'Отметьте, если были на эфире или посмотрели запись', '<button class="ghost gold small" type="button" data-ttick="meet">✓ Отметить</button>');
-    if (!w.cur && weekSessions(cur).some(function (c) { return c.day <= today; })) item('chat', 'Были на занятии с куратором?', 'Отметьте, если были или посмотрели запись', '<button class="ghost gold small" type="button" data-ttick="cur">✓ Отметить</button>');
+    if (md && ymd(md) <= today && !w.meet) item('meet', 'Урок с Татьяной', '', '<button class="ghost gold small" type="button" data-ttick="meet">✓ Отметить</button>');
+    if (!w.cur && weekSessions(cur).some(function (c) { return c.day <= today; })) item('chat', 'Занятие с куратором', '', '<button class="ghost gold small" type="button" data-ttick="cur">✓ Отметить</button>');
     // Открытые и не выполненные практики
     openNums(cur + 1).forEach(function (n) {
       if (practiceAccess(cur + 1, n) !== 'ok' || (w.practices || [])[n - 1]) return;
       var p = practices[pkey(cur + 1, n)];
-      item('practice', 'Практика ждёт вас', esc((p && p.title) || ''), '<button class="ghost gold small" type="button" data-gopr="' + (n - 1) + '">Открыть</button>');
+      item('practice', esc((p && p.title) || 'Практика'), '', '<button class="ghost gold small" type="button" data-gopr="' + (n - 1) + '">Открыть</button>');
     });
     // Действие недели
-    if (!w.action) item('start', 'Запишите действие недели', 'Один шаг к деньгам на эту неделю', '<button class="ghost gold small" type="button" data-tfocus="w-action">Написать</button>');
+    if (!w.action) item('start', 'Действие недели', '', '<button class="ghost gold small" type="button" data-tfocus="w-action">Написать</button>');
     var dt = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
     return '<div class="today"><div class="td-head"><span class="ci">' + svg('today') + '</span><div><h3>Сегодня</h3><small>' + dt.charAt(0).toUpperCase() + dt.slice(1) + '</small></div></div>' +
       (items.length ? items.join('') : '<p class="td-done">На сегодня всё сделано ✨ Отличный ритм!</p>') + '</div>';
