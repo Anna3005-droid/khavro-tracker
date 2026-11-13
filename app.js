@@ -112,6 +112,9 @@
     { id: 'deep', name: 'Глубина', main: true, inc: ['Всё из «Потока»', 'Личная работа «Точка сборки» с Татьяной', 'Работа с травмами развития', 'Разбор своего случая в группе', '3 месяца в группе «Метафизика бизнеса»', 'Материалы навсегда', 'VIP-чат с ответами Татьяны'] },
     { id: 'vip', name: 'VIP', inc: ['Всё из «Глубины»', '4 глубинные сессии индивидуально', 'Личный маршрут проработки', 'Прямая связь с Татьяной между сессиями'] }
   ];
+  // В трекере только тарифы «Глубина» и VIP. «Записи» и «Поток» трекер не получают и в выборе не показываются.
+  var PLAN_CHOICES = ['deep', 'vip'];
+  function choosablePlans(cur) { return PLANS.filter(function (p) { return PLAN_CHOICES.indexOf(p.id) >= 0 || p.id === cur; }); }
   function plan(s) { var id = (s || D()).start.plan; return PLANS.filter(function (p) { return p.id === id; })[0] || null; }
   function planId(s) { var p = plan(s); return p ? p.id : ''; }
   function isRec(s) { return planId(s) === 'rec'; }
@@ -283,7 +286,7 @@
     var attr = VIEW ? 'data-setplan' : 'data-plan';
     if (!cur0 && !VIEW) h += '';
     if (VIEW && admin) h += '<p class="scale" style="margin:0 0 12px">Нажмите на другой тариф, чтобы поменять его участнику.</p>';
-    h += '<div class="plans">' + PLANS.map(function (p) {
+    h += '<div class="plans">' + choosablePlans(cur0).map(function (p) {
       var on = p.id === cur0;
       return '<button class="plan' + (on ? ' on' : '') + '" type="button" ' + attr + '="' + p.id + '" aria-pressed="' + on + '"' + (canChange ? '' : ' disabled') + '>' +
         '<b>' + p.name + '</b></button>';
@@ -442,7 +445,7 @@
       (SHOW_STATE ? '<div><span>Среднее состояние</span><strong>' + (stAvg == null ? '-' : stAvg.toFixed(1) + ' из 5') + '</strong></div>' : '') + '</div>';
     // Сколько людей на каждом тарифе
     var noPlan = P.filter(function (p) { return !planId(p.s); }).length;
-    h += '<div class="plan-count">' + PLANS.map(function (pl) {
+    h += '<div class="plan-count">' + PLANS.filter(function (pl) { return PLAN_CHOICES.indexOf(pl.id) >= 0 || P.some(function (p) { return planId(p.s) === pl.id; }); }).map(function (pl) {
       var n = P.filter(function (p) { return planId(p.s) === pl.id; }).length;
       return '<span class="pill plan-' + pl.id + '">' + pl.name + ': ' + n + '</span>';
     }).join('') + (noPlan ? '<span class="pill mute">не выбрали: ' + noPlan + '</span>' : '') + '</div>';
@@ -460,7 +463,7 @@
           '<td class="nm"><b>' + esc(pname(p)) + (adminIds[p.id] ? ' <span class="pill admin-pill">админ</span>' : '') + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</td>' +
           '<td><select class="plan-select plan-' + (planId(p.s) || 'none') + '" data-rowplan="' + esc(p.id) + '" aria-label="Тариф участника">' +
             (planId(p.s) ? '' : '<option value="">не выбран</option>') +
-            PLANS.map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === planId(p.s) ? ' selected' : '') + '>' + pl.name + '</option>'; }).join('') +
+            choosablePlans(planId(p.s)).map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === planId(p.s) ? ' selected' : '') + '>' + pl.name + '</option>'; }).join('') +
           '</select></td>' +
           '<td>' + freshPill(p.updatedAt) + '</td><td>' + st.touched + ' из 8</td>' +
           '<td>' + mini + st.meets + '</td><td>' + st.curs + '</td><td>' + st.daily + '</td>' + (SHOW_NIGHTS ? '<td>' + st.nights + '</td>' : '') + '<td>' + st.practices + '</td>' +
