@@ -769,7 +769,7 @@
       if (lesson.length) vids.push(btns(lesson, 'Урок с Татьяной'));
       weekSessions(i).forEach(function (c) {
         var cr = recLinks(c.record_url).filter(safeLink);
-        if (cr.length) vids.push(btns(cr, 'Занятие с куратором' + (c.title ? ': ' + esc(c.title) : '')));
+        if (cr.length) vids.push(btns(cr, 'Занятие с куратором'));
       });
       h += '<section class="rec-week"><div class="rec-head"><span class="rec-num">' + (i + 1) + '</span><div><p class="eyebrow">Модуль ' + (i + 1) + '</p>' +
         '<h3 class="rec-title">' + esc(MODULES[i][0]) + '</h3></div></div>' +
