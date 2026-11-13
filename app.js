@@ -1015,8 +1015,9 @@
       (isDone ? '<span class="pc-done">✓ Выполнено</span>' : '') +
       (admin ? '<span class="pill ' + (open ? 'good' : 'mute') + '">' + (open ? 'открыта' : 'закрыта для участников') + '</span>' : '') + '</div>' +
       '<h3 class="pc-title">' + esc(title) + '</h3>' +
-      (o.summary ? '<p class="pc-sum">' + esc(o.summary) + '</p>' : '') +
-      (p.meta ? '<span class="pc-meta">' + esc(p.meta) + '</span>' : '') +
+      // Описание и формат практики на карточке не показываем: только название и кнопки
+      '' +
+      '' +
       practiceToolBtn(wk, num) +
       '<button class="pc-toggle" type="button" data-pcard="' + key + '" aria-expanded="' + expanded + '">' + (expanded ? 'Свернуть ↑' : (PRACTICE_TOOLS[wk + '-' + num] ? 'Описание →' : 'Открыть практику →')) + '</button>';
     if (expanded) {
@@ -1416,11 +1417,11 @@
   ];
   // Под практиками недели: ссылки на сайты-тренажёры. Каждый открывается отдельно, в новой вкладке.
   function toolsHTML() {
-    return '<div class="mak"><h2>Техники</h2><p class="note">Тренажёры для самостоятельной работы между встречами. Каждый открывается отдельно, его можно добавить на главный экран телефона.</p>' +
+    return '<div class="mak"><h2>Техники</h2>' +
       '<div class="tools">' + TOOLS.map(function (t) {
         return '<a class="tool" href="' + esc(t.url) + '" target="_blank" rel="noopener">' +
           '<span class="ci">' + svg(t.icon) + '</span>' +
-          '<span class="tool-body"><small>' + esc(t.tag) + '</small><b>' + esc(t.title) + '</b><span>' + esc(t.text) + '</span></span>' +
+          '<span class="tool-body"><b>' + esc(t.title) + '</b></span>' +
           '<span class="tool-go">Открыть<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></span></a>';
       }).join('') + '</div></div>';
   }
