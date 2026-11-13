@@ -896,7 +896,16 @@
   // Видны сразу, без открытия админом. Ключ — номер недели с нуля (1 = неделя 2).
   // Участник отмечает «✓ Выполнено» (S.weeks[i].vids[id]); в кольцо прогресса не входит.
   var WEEK_VIDEOS = {
-    1: [{ id: 'krutilka', title: 'Техника «Крутилка»', yt: 'eCtOjSd5Qik' }]
+    1: [{
+      id: 'krutilka', title: 'Техника «Крутилка»', yt: 'eCtOjSd5Qik',
+      about: 'Помогает стирать негативный опыт прошлого и возвращать себе энергию, которая в нём ещё осталась.',
+      steps: [
+        'Вспомните несколько ситуаций из прошлого, которые до сих пор вызывают у вас эмоции или сильно запомнились и с которыми вы ещё не работали: школьные, подростковые годы или что-то недавнее.',
+        'Возьмите одну ситуацию и выполняйте технику вместе с Татьяной по видео.',
+        'Повторите с каждой ситуацией из вашего списка.'
+      ],
+      note: 'Пока не берите очень большие события, например начало войны: с ними работаем отдельно.'
+    }]
   };
   var playing = {};
   function weekVideos(i) { return WEEK_VIDEOS[i] || []; }
@@ -906,7 +915,9 @@
       ? '<iframe class="vid-frame" src="https://www.youtube-nocookie.com/embed/' + v.yt + '?autoplay=1&rel=0" title="' + esc(v.title) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'
       : '<button class="vid-thumb" type="button" data-play="' + esc(key) + '" aria-label="Смотреть: ' + esc(v.title) + '"><img src="https://i.ytimg.com/vi/' + v.yt + '/hqdefault.jpg" alt="" loading="lazy"><span class="vid-play">▶</span></button>';
     return '<article class="pc vid' + (done ? ' done' : '') + '"><div class="pc-body"><div class="pc-top"><p class="pc-eyebrow">Видео-техника</p>' + (done ? '<span class="pc-done">✓ Выполнено</span>' : '') + '</div>' +
-      '<h3 class="pc-title">' + esc(v.title) + '</h3>' + player +
+      '<h3 class="pc-title">' + esc(v.title) + '</h3>' + (v.about ? '<p class="pc-sum">' + esc(v.about) + '</p>' : '') + player +
+      (v.steps ? '<h4 class="vid-h">Как выполнять</h4><ol class="steps">' + v.steps.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '') +
+      (v.note ? '<p class="vid-note"><b>Важно:</b> ' + esc(v.note) + '</p>' : '') +
       (VIEW ? '' : '<div class="actions"><button class="' + (done ? 'ghost' : 'btn') + '" type="button" data-vdone="' + esc(v.id) + '">' + (done ? 'Снять отметку' : 'Отметить выполненной') + '</button>' +
         '<a class="plink" href="https://youtu.be/' + v.yt + '" target="_blank" rel="noopener">Открыть в YouTube ↗</a></div>') + '</div></article>';
   }

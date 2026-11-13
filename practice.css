@@ -96,3 +96,6 @@
 .vid-play { position: absolute; inset: 0; margin: auto; width: 64px; height: 64px; border-radius: 50%; background: var(--gold); color: #fff; display: grid; place-items: center; font-size: 24px; padding-left: 4px; box-shadow: 0 8px 30px rgba(0, 0, 0, .45); }
 .vid-frame { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; margin: 10px 0 12px; background: #000; }
 .pc.vid .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.vid-h { margin: 4px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--acc2, var(--gold)); }
+.vid-note { margin: 4px 0 12px; font-size: 14px; color: var(--muted); }
+.vid-note b { color: var(--ink); font-weight: 500; }
