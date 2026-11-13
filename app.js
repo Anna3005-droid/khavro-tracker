@@ -252,12 +252,12 @@
 
   function renderStart() {
     var v = D().start, h = '';
-    h += '<h2>Точка старта</h2><p class="note">Включите напоминания, отметьте, с чем вы пришли, и оцените себя сейчас. В конце программы вы увидите, что изменилось.</p>';
+    h += '<h2>Точка старта</h2>';
     h += pushBlock(); // напоминания включают один раз, сразу при первом входе
-    h += '<div class="block"><h3>Расписание программы</h3><div class="sched sched-plain">' +
+    h += '<div class="block"><h3>Расписание · по Киеву</h3><div class="sched sched-plain">' +
       '<div class="sched-row"><span class="sched-day">Каждый понедельник</span><span class="sched-time">' + CURATOR_TIME + '</span><span class="sched-what">Занятие с куратором</span></div>' +
       '<div class="sched-row"><span class="sched-day">Каждый четверг</span><span class="sched-time">' + LESSON_TIME + '</span><span class="sched-what">Урок с Татьяной</span></div>' +
-      '</div><p class="scale" style="margin:8px 0 0">Время по Киеву. Ссылки на эфиры появятся во вкладке «Неделя», напоминания придут на телефон.</p></div>';
+      '</div></div>';
     h += '<div class="block"><h3>О вас</h3><div class="row"><label class="f" for="s-name">Как вас зовут<input type="text" id="s-name" data-bind="start.name" value="' + esc(v.name) + '" placeholder="Имя и фамилия" autocomplete="name"' + dis() + '></label>' +
       '<label class="f" for="s-tg">Ник в Telegram<input type="text" id="s-tg" data-bind="start.tg" value="' + esc(v.tg) + '" placeholder="@nickname" autocapitalize="off" spellcheck="false"' + dis() + '></label>' +
       '<label class="f" for="s-date">Старт программы<input type="date" id="s-date" data-bind="start.date" value="' + esc(v.date) + '"' + dis() + '></label></div></div>';
@@ -265,11 +265,11 @@
     h += '<div class="block"><h3>Доход на старте</h3><div class="row">' +
       '<label class="f" for="s-income">Ваш доход в месяц сейчас<input type="number" inputmode="numeric" id="s-income" data-bind="start.income" value="' + esc(v.income) + '" placeholder="0"' + dis() + '></label>' +
       '<label class="f" for="s-cur">Валюта<select id="s-cur" data-bind="start.cur"' + dis() + '>' + ['€', '$', '₴'].map(function (c) { return '<option' + (v.cur === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label></div>' +
-      '<p class="scale">В конце программы вы запишете доход ещё раз во вкладке «Итоги» и увидите, как он изменился.</p></div>';
-    h += '<div class="block"><h3>С чем вы пришли в программу</h3><p class="field-hint">Какие из этих ситуаций сейчас происходят с вами? Отметьте всё, что про вас. Можно выбрать несколько.</p><div class="sitlist">' + SITUATIONS.map(function (t, i) {
+      '</div>';
+    h += '<div class="block"><h3>С чем вы пришли в программу</h3><div class="sitlist">' + SITUATIONS.map(function (t, i) {
       return chkRow('sit-' + i, 'start.sit.' + i, v.sit[i], t);
     }).join('') + '</div></div>';
-    h += '<div class="block"><h3>Оцените себя сейчас</h3><p class="field-hint">Это ваша точка «до». Насколько каждая фраза уже про вас сегодня: <b>1</b> — совсем нет, <b>5</b> — да, уже так. Честно, правильных ответов нет. В конце программы вы оцените себя по тем же фразам во вкладке «Итоги» и увидите, что изменилось.</p><div class="cmp">' + RESULTS.map(function (t, i) {
+    h += '<div class="block"><h3>Оцените себя сейчас</h3><div class="cmp">' + RESULTS.map(function (t, i) {
       return '<div class="item"><span class="name">' + t + '</span>' + dotsRow('start.res.' + i, v.res[i]) + '</div>';
     }).join('') + '</div><p class="scale">1 — совсем не про меня · 5 — это уже так</p></div>';
     $('start').innerHTML = h;
@@ -281,14 +281,14 @@
     var cur0 = planId(), h = '<div class="block" id="plan-block"><h3>' + (VIEW ? 'Тариф участника' : 'Ваш тариф') + '</h3>';
     var canChange = VIEW ? admin : (admin || !cur0);
     var attr = VIEW ? 'data-setplan' : 'data-plan';
-    if (!cur0 && !VIEW) h += '<p class="scale" style="margin:0 0 12px">Выберите тариф, который вы купили. Поменять его потом сможет только администратор.</p>';
+    if (!cur0 && !VIEW) h += '';
     if (VIEW && admin) h += '<p class="scale" style="margin:0 0 12px">Нажмите на другой тариф, чтобы поменять его участнику.</p>';
     h += '<div class="plans">' + PLANS.map(function (p) {
       var on = p.id === cur0;
       return '<button class="plan' + (on ? ' on' : '') + '" type="button" ' + attr + '="' + p.id + '" aria-pressed="' + on + '"' + (canChange ? '' : ' disabled') + '>' +
         '<b>' + p.name + '</b></button>';
     }).join('') + '</div>';
-    if (cur0 && !canChange) h += '<p class="scale" style="margin:10px 0 0">Тариф меняет администратор. Если выбрали не тот, напишите в чат программы.</p>';
+    if (cur0 && !canChange) h += '';
     // Состав тарифов участникам не показываем: трекер — платформа, а не описание тарифов
     return h + '</div>';
   }
@@ -303,7 +303,7 @@
     h += meetingBlock();
     h += curatorBlock();
     h += helpBox('w');
-    h += '<div class="themes"><div class="theme"><h3>Что прорабатываем</h3><p>' + M[1] + '</p></div></div>';
+    // «Что прорабатываем» не показываем: трекер — дневник, без описаний модуля
     h += '<div class="block"><h3>На этой неделе</h3><div class="checks">' +
       (isRec() ? chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Запись встречи с Татьяной', 'Доступна через сутки после эфира', 'meet')
         : chkRow('w-meet', 'weeks.' + cur + '.meet', w.meet, 'Живая встреча с Татьяной', '', 'meet')) +
@@ -315,7 +315,7 @@
     h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + weekVideos(cur).map(function (v) {
       var d = !!(w.vids && w.vids[v.id]);
       return '<div class="crow has-ico"><span class="ci">' + svg('records') + '</span><span>' + esc(v.title) + '<small>Видео-техника' + (d ? ' · ✓ выполнено' : '') + (VIEW ? '' : ' · <button class="plink" type="button" data-govid="1">Смотреть →</button>') + '</small></span></div>';
-    }).join('') + (wnums.length || weekVideos(cur).length ? '' : '<p class="scale" style="margin:0">Практики этой недели появятся после встречи с Татьяной.</p>') + wnums.map(function (n) {
+    }).join('') + (wnums.length || weekVideos(cur).length ? '' : '<p class="scale" style="margin:0">Скоро</p>') + wnums.map(function (n) {
       var j = n - 1, p = practices[pkey(cur + 1, n)];
       var title = esc((p && p.title) || 'Практика');
       var go = VIEW ? '' : '<button class="plink" type="button" data-gopr="' + j + '">Открыть практику →</button>';
@@ -344,13 +344,13 @@
       var wd = day ? day.toLocaleDateString('ru-RU', { weekday: 'short' }) : 'ночь';
       return '<label class="night" for="w-n' + n + '"><b>' + wd + '</b><input class="chk moon" type="checkbox" id="w-n' + n + '" data-bind="weeks.' + cur + '.nights.' + n + '"' + (w.nights[n] ? ' checked' : '') + dis() + ' aria-label="' + (day ? day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Ночь ' + (n + 1)) + '">' + (day ? day.getDate() : n + 1) + '</label>';
     }).join('') + '</div><p class="scale">Отмечайте ночи, когда вы слушали протокол перед сном.</p></div>';
-    h += '<div class="block"><h3>Действие недели</h3><p class="field-hint">Один конкретный шаг на этой неделе, который приблизит вас к деньгам. Не мысль, а дело: что именно вы сделаете?</p><input type="text" id="w-action" data-bind="weeks.' + cur + '.action" value="' + esc(w.action) + '" placeholder="Например: написать 3 клиентам"' + dis() + '></div>';
+    h += '<div class="block"><h3>Действие недели</h3><input type="text" id="w-action" data-bind="weeks.' + cur + '.action" value="' + esc(w.action) + '" placeholder="Например: написать 3 клиентам"' + dis() + '></div>';
     if (SHOW_STATE) h += '<div class="block"><h3>Состояние: энергия и ясность</h3><div class="scales">' +
       '<div class="week"><span>В начале недели</span>' + dotsRow('weeks.' + cur + '.s0', w.s0) + '</div>' +
       '<div class="week"><span>В конце недели</span>' + dotsRow('weeks.' + cur + '.s1', w.s1) + '</div>' +
       '</div><p class="scale">От 1, когда нет сил, до 5, когда ясно и легко.</p></div>';
-    h += '<div class="block"><h3>Главный инсайт</h3><p class="field-hint">Самое важное, что вы поняли о себе и о деньгах за эту неделю: на встрече, в практике или в жизни.</p><textarea id="w-insight" data-bind="weeks.' + cur + '.insight" placeholder="Например: я боюсь поднимать цену, потому что…"' + dis() + '>' + esc(w.insight) + '</textarea></div>';
-    h += '<div class="block"><h3>Итог недели</h3><p class="field-hint">Что изменилось за неделю в ваших действиях и в деньгах и что вы берёте в следующую неделю.</p><textarea id="w-recap" data-bind="weeks.' + cur + '.recap" placeholder="Например: подняла цену, пришёл новый клиент"' + dis() + '>' + esc(w.recap) + '</textarea></div>';
+    h += '<div class="block"><h3>Главный инсайт</h3><textarea id="w-insight" data-bind="weeks.' + cur + '.insight" placeholder="Например: я боюсь поднимать цену, потому что…"' + dis() + '>' + esc(w.insight) + '</textarea></div>';
+    h += '<div class="block"><h3>Итог недели</h3><textarea id="w-recap" data-bind="weeks.' + cur + '.recap" placeholder="Например: подняла цену, пришёл новый клиент"' + dis() + '>' + esc(w.recap) + '</textarea></div>';
     $('weeks').innerHTML = h; lastDone = null; updDone();
     var chip = document.querySelector('.chip[data-w="' + cur + '"]'), box = $('chips');
     if (chip && box) box.scrollLeft = Math.max(0, chip.offsetLeft - 16);
@@ -366,7 +366,7 @@
 
   function renderTotal() {
     var s = D(), W = s.weeks, st = stats(s), h = '';
-    h += '<h2>Итоги программы</h2><p class="note">Встречи и практики собираются из недель. Доход вы записываете здесь в конце программы.</p>';
+    h += '<h2>Итоги программы</h2>';
     h += '<div class="kpis">' +
       '<div><span>' + (isRec(s) ? 'Записи встреч' : 'Встречи с Татьяной') + '</span><strong>' + st.meets + ' из 8</strong></div>' +
       '<div><span>Занятия с куратором</span><strong>' + st.curs + ' из 8</strong></div>' +
@@ -386,7 +386,7 @@
         '<div class="pair"><span>До</span><span class="track"><span class="fill" style="width:' + b * 20 + '%"></span></span><span>' + (b || '-') + '</span></div>' +
         '<div class="pair"><span>После</span><span class="track"><span class="fill after" style="width:' + a * 20 + '%"></span></span><span>' + (a || '-') + '</span></div>' +
         dotsRow('end.res.' + i, a) + '</div>';
-    }).join('') + '</div><p class="scale">Оцените, где вы сейчас, на тех же пяти результатах, что и на старте.</p>';
+    }).join('') + '</div><p class="scale">1 — совсем не про меня · 5 — это уже так</p>';
     $('total').innerHTML = h;
     updIncome();
   }
@@ -705,8 +705,8 @@
   function pushBlock() {
     if (VIEW || pushState === 'unknown') return '';
     var h = '<div class="meet push"><span class="ci">' + svg('bell') + '</span><div class="hb-text"><b>Напоминания на телефон</b>';
-    if (pushState === 'on') return h + '<small>Включены ✓ За сутки и за час до эфиров</small></div><div class="meet-acts"><button class="ghost small" type="button" id="push-off">Выключить</button></div></div>';
-    if (pushState === 'off') return h + '<small>Пришлём уведомление за сутки и за час до урока и занятий с кураторами</small></div><div class="meet-acts"><button class="btn" type="button" id="push-on">Включить напоминания</button></div></div>';
+    if (pushState === 'on') return h + '<small>Включены ✓</small></div><div class="meet-acts"><button class="ghost small" type="button" id="push-off">Выключить</button></div></div>';
+    if (pushState === 'off') return h + '<small>За сутки и за час до эфира</small></div><div class="meet-acts"><button class="btn" type="button" id="push-on">Включить напоминания</button></div></div>';
     if (pushState === 'denied') return h + '<small>Уведомления запрещены. Разрешите их для этого сайта в настройках телефона или браузера и обновите страницу.</small></div></div>';
     if (pushState === 'ios-install') return h + '<small>На iPhone сначала добавьте трекер на экран «Домой»: «Поделиться» → «На экран „Домой“». Откройте трекер с иконки, и здесь появится кнопка.</small></div></div>';
     return h + '<small>Этот браузер не поддерживает уведомления. Откройте трекер в Chrome или Safari.</small></div></div>';
