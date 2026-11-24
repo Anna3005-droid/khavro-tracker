@@ -921,6 +921,7 @@
   var WEEK_VIDEOS = {
     1: [{
       id: 'krutilka', title: 'Техника «Крутилка»', yt: 'eCtOjSd5Qik',
+      files: [{ name: 'Приложение «Крутилка»', url: 'https://krutilka-kappa.vercel.app/', icon: '↗' }],
       about: 'Помогает стирать негативный опыт прошлого и возвращать себе энергию, которая в нём ещё осталась.',
       steps: [
         'Вспомните несколько ситуаций из прошлого, которые до сих пор вызывают у вас эмоции или сильно запомнились и с которыми вы ещё не работали: школьные, подростковые годы или что-то недавнее.',
@@ -965,7 +966,7 @@
       '<h3 class="pc-title">' + esc(v.title) + '</h3>' + (SHOW_VIDEO_TEXT && v.about ? '<p class="pc-sum">' + esc(v.about) + '</p>' : '') + player +
       (SHOW_VIDEO_TEXT && v.steps ? '<h4 class="vid-h">Как выполнять</h4><ol class="steps">' + v.steps.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '') +
       (SHOW_VIDEO_TEXT && v.note ? '<p class="vid-note"><b>Важно:</b> ' + esc(v.note) + '</p>' : '') +
-      (v.files ? '<div class="vid-files">' + v.files.map(function (f) { return '<a class="btnlink ghostlink" href="' + esc(f.url) + '" target="_blank" rel="noopener">📄 ' + esc(f.name) + '</a>'; }).join('') + '</div>' : '') +
+      (v.files ? '<div class="vid-files">' + v.files.map(function (f) { return '<a class="btnlink ghostlink" href="' + esc(f.url) + '" target="_blank" rel="noopener">' + (f.icon ? esc(f.name) + ' ' + f.icon : '📄 ' + esc(f.name)) + '</a>'; }).join('') + '</div>' : '') +
       (VIEW ? '' : '<div class="actions"><button class="' + (done ? 'ghost' : 'btn') + '" type="button" data-vdone="' + esc(v.id) + '">' + (done ? 'Снять отметку' : 'Отметить выполненной') + '</button>' +
         '<a class="plink" href="https://youtu.be/' + v.yt + '" target="_blank" rel="noopener">Открыть в YouTube ↗</a></div>') + '</div></article>';
   }
