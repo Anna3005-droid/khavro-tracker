@@ -317,7 +317,7 @@
     var wnums = openNums(cur + 1).filter(function (n) { return practiceAccess(cur + 1, n) === 'ok'; });
     h += '<div class="block"><h3>Практики модуля</h3><div class="checks">' + weekVideos(cur).map(function (v) {
       var d = !!(w.vids && w.vids[v.id]);
-      return '<div class="crow has-ico"><span class="ci">' + svg('records') + '</span><span>' + esc(v.title) + '<small>Видео-техника' + (d ? ' · ✓ выполнено' : '') + (VIEW ? '' : ' · <button class="plink" type="button" data-govid="1">Смотреть →</button>') + '</small></span></div>';
+      return '<div class="crow has-ico"><span class="ci">' + svg('records') + '</span><span>' + esc(v.title) + '<small>' + esc(v.eyebrow || 'Видео-техника') + (d ? ' · ✓ выполнено' : '') + (VIEW ? '' : ' · <button class="plink" type="button" data-govid="1">' + (v.yt ? 'Смотреть' : 'Открыть') + ' →</button>') + '</small></span></div>';
     }).join('') + (wnums.length || weekVideos(cur).length ? '' : '<p class="scale" style="margin:0">Скоро</p>') + wnums.map(function (n) {
       var j = n - 1, p = practices[pkey(cur + 1, n)];
       var title = esc((p && p.title) || 'Практика');
@@ -951,6 +951,10 @@
       id: 'v5', title: 'Дополнительная техника к структуре потребностей', yt: 'uA6neZLkqvo'
     }, {
       id: 'v4', title: 'Упражнение к структуре потребностей', yt: 'JoIYKbTjb3Y'
+    }],
+    // Модуль 3: приложение-комплекс из 6 практик (без видео — карточка с кнопкой «Открыть практики»)
+    2: [{
+      id: 'separ', title: 'Практики сепарации', app: 'https://praktiki-separacii.vercel.app/', eyebrow: 'Комплекс · 6 практик'
     }]
   };
   var playing = {};
@@ -958,24 +962,25 @@
   function weekVideos(i) { return WEEK_VIDEOS[i] || []; }
   function videoCard(v, i) {
     var w = S.weeks[i], done = !!(w.vids && w.vids[v.id]), key = i + '-' + v.id;
-    var player = playing[key]
+    var player = !v.yt ? '' : playing[key]
       ? '<iframe class="vid-frame" src="https://www.youtube-nocookie.com/embed/' + v.yt + '?autoplay=1&rel=0" title="' + esc(v.title) + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'
       : '<button class="vid-thumb" type="button" data-play="' + esc(key) + '" aria-label="Смотреть: ' + esc(v.title) + '"><img src="https://i.ytimg.com/vi/' + v.yt + '/hqdefault.jpg" alt="" loading="lazy"><span class="vid-play">▶</span></button>';
-    return '<article class="pc vid' + (done ? ' done' : '') + '"><div class="pc-body"><div class="pc-top"><p class="pc-eyebrow">Видео-техника</p>' + (done ? '<span class="pc-done">✓ Выполнено</span>' : '') + '</div>' +
+    return '<article class="pc vid' + (done ? ' done' : '') + '"><div class="pc-body"><div class="pc-top"><p class="pc-eyebrow">' + esc(v.eyebrow || 'Видео-техника') + '</p>' + (done ? '<span class="pc-done">✓ Выполнено</span>' : '') + '</div>' +
       // Описания (about / steps / note) пока не показываем: только название и видео. Вернуть — SHOW_VIDEO_TEXT = true.
       '<h3 class="pc-title">' + esc(v.title) + '</h3>' + (SHOW_VIDEO_TEXT && v.about ? '<p class="pc-sum">' + esc(v.about) + '</p>' : '') + player +
       (SHOW_VIDEO_TEXT && v.steps ? '<h4 class="vid-h">Как выполнять</h4><ol class="steps">' + v.steps.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '') +
       (SHOW_VIDEO_TEXT && v.note ? '<p class="vid-note"><b>Важно:</b> ' + esc(v.note) + '</p>' : '') +
+      (v.app ? '<div class="actions"><a class="btnlink pc-tool" href="' + esc(v.app) + '" target="_blank" rel="noopener">Открыть практики ↗</a></div>' : '') +
       (v.files ? '<div class="vid-files">' + v.files.map(function (f) { return '<a class="btnlink ghostlink" href="' + esc(f.url) + '" target="_blank" rel="noopener">' + (f.icon ? esc(f.name) + ' ' + f.icon : '📄 ' + esc(f.name)) + '</a>'; }).join('') + '</div>' : '') +
       (VIEW ? '' : '<div class="actions"><button class="' + (done ? 'ghost' : 'btn') + '" type="button" data-vdone="' + esc(v.id) + '">' + (done ? 'Снять отметку' : 'Отметить выполненной') + '</button>' +
-        '<a class="plink" href="https://youtu.be/' + v.yt + '" target="_blank" rel="noopener">Открыть в YouTube ↗</a></div>') + '</div></article>';
+        (v.yt ? '<a class="plink" href="https://youtu.be/' + v.yt + '" target="_blank" rel="noopener">Открыть в YouTube ↗</a>' : '') + '</div>') + '</div></article>';
   }
   function renderPractice() {
     var wk = cur + 1, list = weekPractices(wk), w = S.weeks[cur], h = '';
     var doneN = w.practices.filter(function (v, j) { return v && practiceAccess(wk, j + 1) === 'ok'; }).length, ofN = practicesOpenTo(cur);
     h += '<div class="chips">' + MODULES.map(function (x, i) {
       var n = openNums(i + 1).filter(function (k) { return admin || practiceAccess(i + 1, k) === 'ok'; }).length;
-      return '<button class="chip pchip' + (n || weekVideos(i).length ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + (n ? n + ' ' + practWord(n) : weekVideos(i).length ? 'видео' : 'скоро') + '</small></button>';
+      return '<button class="chip pchip' + (n || weekVideos(i).length ? '' : ' locked') + '" type="button" data-pw="' + i + '" aria-pressed="' + (i === cur) + '">' + (i + 1) + '<small>' + (n ? n + ' ' + practWord(n) : weekVideos(i).length ? (weekVideos(i).some(function (v) { return v.yt; }) ? 'видео' : 'практики') : 'скоро') + '</small></button>';
     }).join('') + '</div>';
     h += '<div class="mod-head"><h2>Модуль ' + wk + ' · <em>' + MODULES[cur][0] + '</em></h2>' +
       (ofN ? '<div class="mod-prog"><span>Выполнено <b>' + doneN + '</b> из ' + ofN + '</span><span class="thin" role="img" aria-label="Выполнено ' + doneN + ' из ' + ofN + '"><i style="width:' + (doneN / ofN * 100).toFixed(0) + '%"></i></span></div>' : '') + '</div>';
