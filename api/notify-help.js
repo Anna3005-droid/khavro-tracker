@@ -10,6 +10,8 @@
 const SUPABASE_URL = 'https://txyawjxefzzwxvypfvlr.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_TQj7UK_FS5p6nW7T3vRy7g_9x8DWxSV';
 const SITE_URL = 'https://khavro-tracker.vercel.app';
+// Зеркало трекера на GitHub Pages обращается к этой функции с другого адреса: разрешаем ему.
+const MIRROR_ORIGIN = 'https://anna3005-droid.github.io';
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -39,6 +41,14 @@ async function sendTelegram(token, chats, text) {
 }
 
 module.exports = async (req, res) => {
+  if (req.headers.origin === MIRROR_ORIGIN) {
+    res.setHeader('Access-Control-Allow-Origin', MIRROR_ORIGIN);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+  res.setHeader('Vary', 'Origin');
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Только POST' });
 
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
